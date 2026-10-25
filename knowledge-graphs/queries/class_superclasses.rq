@@ -1,0 +1,7 @@
+# Transitive superclasses of one class ($cls) - inferred through rdfs:subClassOf.
+SELECT DISTINCT ?super ?label
+WHERE {
+  ?cls rdfs:subClassOf+ ?super .
+  FILTER(isIRI(?super))
+  OPTIONAL { ?super rdfs:label ?label }
+}

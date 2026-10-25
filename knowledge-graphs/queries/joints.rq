@@ -1,0 +1,20 @@
+# All joints of one configuration ($config) with normalised class, DoF, connectivity,
+# actuation and the per-format type/line as written in the source files.
+SELECT ?joint ?name ?class ?dof ?parent ?child ?axis
+       (GROUP_CONCAT(DISTINCT ?mentionStr; separator=" | ") AS ?mentions)
+       (SAMPLE(?actName) AS ?actuator)
+WHERE {
+  ?config jz:hasElement ?joint .
+  ?joint a ?cls ; jz:nativeName ?name ; jz:degreesOfFreedom ?dof ; jz:childLink ?c .
+  ?cls rdfs:subClassOf jz:Joint .
+  BIND(STRAFTER(STR(?cls), "#") AS ?class)
+  ?c jz:nativeName ?child .
+  OPTIONAL { ?joint jz:parentLink ?p . ?p jz:nativeName ?parent }
+  OPTIONAL { ?joint jz:axis ?axis }
+  ?joint jz:hasMention ?m .
+  ?m jz:sourceFormat ?fmt ; jz:sourceLine ?line ; jz:sourceType ?stype .
+  BIND(CONCAT(?fmt, ":", ?stype, "@L", STR(?line)) AS ?mentionStr)
+  OPTIONAL { ?a jz:drivesJoint ?joint ; jz:nativeName ?actName }
+}
+GROUP BY ?joint ?name ?class ?dof ?parent ?child ?axis
+ORDER BY ?name

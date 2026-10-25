@@ -1,0 +1,11 @@
+# Knowledge-graph elements that are (directly or by subclass inference) instances of $cls.
+SELECT ?element ?name ?config ?directClass
+WHERE {
+  ?element a ?direct .
+  ?direct rdfs:subClassOf* ?cls .
+  ?element jz:nativeName ?name .
+  ?config jz:hasElement ?element .
+  BIND(STRAFTER(STR(?direct), "#") AS ?directClass)
+}
+ORDER BY ?name
+LIMIT 200

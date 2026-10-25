@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<robot name="demo_arm">
+  <!-- <joint name="ghost_joint" type="revolute"><parent link="base"/><child link="l1"/></joint> -->
+  <link name="base">
+    <inertial><mass value="2.0"/></inertial>
+  </link>
+  <link name="l1"><inertial><mass value="1.0"/></inertial><visual><geometry><box size="1 1 1"/></geometry></visual></link>
+  <link name="l2"><inertial><mass value="0.5"/></inertial></link>
+  <link name="tool"/>
+  <joint name="shoulder_joint" type="revolute">
+    <parent link="base"/><child link="l1"/><axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" effort="35" velocity="3.0"/>
+  </joint>
+  <joint name="slide_joint" type="prismatic">
+    <parent link="l1"/><child link="l2"/><axis xyz="1 0 0"/>
+    <limit lower="0" upper="0.2" effort="100" velocity="0.5"/>
+  </joint>
+  <joint name="tool_joint" type="fixed">
+    <parent link="l2"/><child link="tool"/>
+  </joint>
+  <transmission name="t1"/>
+</robot>

@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { @apply bg-white text-ink antialiased; font-feature-settings: "kern"; }
+
+.card { @apply rounded-2xl border border-line bg-white shadow-card; }
+.chip { @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium; }
+.btn { @apply rounded-full px-4 py-2 text-sm font-medium transition; }
+.btn-primary { @apply btn bg-navy text-white hover:bg-navy-deep disabled:opacity-40; }
+.btn-ghost { @apply btn text-navy hover:bg-navy-soft; }
+.label { @apply text-[11px] font-semibold uppercase tracking-wider text-ink-mute; }
+
+/* Markdown answers */
+.prose-jz { @apply text-[15px] leading-relaxed text-ink; }
+.prose-jz p { @apply my-2; }
+.prose-jz h1, .prose-jz h2, .prose-jz h3 { @apply mt-4 mb-1 font-semibold text-ink; }
+.prose-jz h3 { @apply text-[15px]; }
+.prose-jz ul { @apply my-2 list-disc pl-5; }
+.prose-jz ol { @apply my-2 list-decimal pl-5; }
+.prose-jz li { @apply my-0.5; }
+.prose-jz code { @apply rounded bg-mist px-1 py-0.5 font-mono text-[13px]; }
+.prose-jz pre { @apply my-2 overflow-x-auto rounded-xl bg-mist p-3 text-[12px]; }
+.prose-jz pre code { @apply bg-transparent p-0; }
+.prose-jz table { @apply my-3 w-full border-collapse text-sm; }
+.prose-jz th { @apply border-b border-line py-1.5 pr-4 text-left font-semibold; }
+.prose-jz td { @apply border-b border-line/70 py-1.5 pr-4; }
+.prose-jz a { @apply text-navy underline-offset-2 hover:underline; }

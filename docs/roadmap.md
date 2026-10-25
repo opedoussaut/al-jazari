@@ -1,0 +1,59 @@
+# JAZARI roadmap
+
+Status as of 2026-10-25.
+
+## M1: Working foundation — done
+
+- [x] Repository, manifest-driven source pinning, reproducible `uv` + `npm` installation
+- [x] Architecture overview, decision records, source/license inventory, ontology map
+- [x] FastAPI backend, `/api/v1/health`, Ollama connectivity with configurable endpoint/model
+- [x] Minimal frontend
+- [ ] Docker images verified end to end (Compose file provided; Docker daemon was not running during M2, so it is untested)
+
+## M2: First robot expert (Unitree G1) — done
+
+- [x] URDF and MJCF parsers with source line numbers, hardened XML parsing
+- [x] Pinned `g1_29dof_rev_1_0` ingestion into an ontology-grounded graph (5.8k triples)
+- [x] SHACL + structural + cross-format validation (found 6 real upstream inconsistencies)
+- [x] Named read-only SPARQL queries and a fixed tool catalog
+- [x] Natural-language Q&A through the graph with evidence permalinks and number verification
+- [x] Chat UI with evidence and trace; Robots, Ontologies and Compare pages on live data
+- [x] 41-question benchmark with automated scoring ([results](evaluation.md))
+
+## M3: Three-robot knowledge — next
+
+1. Xacro expansion (sandboxed: no `$(find)` network or shell evaluation) and URDF/MJCF
+   `<include>` resolution.
+2. Berkeley Humanoid Lite: choose and record the baseline configuration, ingest, validate.
+3. ALOHA 2 (Menagerie MJCF): bimanual model, grippers with equality constraints, cameras,
+   tendon/equality elements in the parser.
+4. Curated document facts (`jz:Curated`) for motor tables, e.g. G1 `motor_info.md`, with
+   explicit variant applicability.
+5. Normalised comparison dimensions that respect category differences (humanoid vs
+   bimanual), with "not applicable" distinct from "not stated".
+
+## M4: Semantic reasoning
+
+- Ontology-aware traversal (subsystems: leg, arm, waist as `jz:Subsystem` with derivation
+  rules), pose via POS, capability/task vocabulary (evaluate IEEE 1872.2 availability).
+- Hybrid document retrieval (BM25 + local embeddings via Ollama) over licensed papers.
+- Evidence graph visualisation in the UI.
+
+## M5: 3D exploration
+
+- Fetch STL meshes on demand and render a single robot with Three.js/React Three Fiber
+  (URDF loader). Clicking a link highlights its graph entity, and back.
+
+## M6: Robotics fine-tuning
+
+- Run the benchmark on more models first, then grow the benchmark (held-out split).
+- LoRA/QLoRA via Unsloth on a separate GPU box (6 GB VRAM is too small for 7B+ QLoRA with
+  useful context). Training targets: tool selection, abstention, citation discipline.
+  Not the graph contents.
+- Promote a model only if it beats the baseline on the held-out set.
+
+## M7: Public release
+
+- w3id registration, LICENSE review by the owner, NOTICE completeness.
+- Public deployment profile: API key or OAuth, rate limiting, restricted CORS, no Ollama
+  exposure, read-only graph, request size limits. See [deployment](deployment/README.md).

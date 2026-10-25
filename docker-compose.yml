@@ -1,0 +1,20 @@
+# Local deployment: backend + static frontend. Ollama runs on the host.
+services:
+  backend:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    environment:
+      JAZARI_OLLAMA_URL: ${JAZARI_OLLAMA_URL:-http://host.docker.internal:11434}
+      JAZARI_MODEL: ${JAZARI_MODEL:-qwen3-coder:30b}
+      JAZARI_CORS_ORIGINS: '["http://localhost:8080"]'
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - jazari-data:/app/.cache
+      - jazari-generated:/app/knowledge-graphs/generated
+    ports: ["127.0.0.1:8000:8000"]
+  frontend:
+    build: { context: ., dockerfile: frontend/Dockerfile }
+    depends_on: [backend]
+    ports: ["127.0.0.1:8080:80"]
+volumes:
+  jazari-data:
+  jazari-generated:

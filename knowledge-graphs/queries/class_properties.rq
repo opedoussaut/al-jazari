@@ -1,0 +1,12 @@
+# Properties whose domain or range is the class ($cls), with IEEE 1872-2015 axiom numbers
+# where the reference OWL records them.
+SELECT DISTINCT ?property ?role ?other ?axiom
+WHERE {
+  { ?property rdfs:domain ?cls . BIND("domain" AS ?role) OPTIONAL { ?property rdfs:range ?other } }
+  UNION
+  { ?property rdfs:range ?cls . BIND("range" AS ?role) OPTIONAL { ?property rdfs:domain ?other } }
+  OPTIONAL {
+    ?ax owl:annotatedSource ?property ; owl:annotatedTarget ?cls ;
+        ieee:ieee18722015AxiomNumber ?axiom .
+  }
+}

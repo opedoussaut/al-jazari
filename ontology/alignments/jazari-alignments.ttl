@@ -1,0 +1,30 @@
+@prefix jz:     <https://w3id.org/jazari/ontology#> .
+@prefix cora:   <http://purl.org/ieee1872-owl/cora-bare#> .
+@prefix corax:  <http://purl.org/ieee1872-owl/corax#> .
+@prefix rparts: <http://purl.org/ieee1872-owl/rparts#> .
+@prefix sumo:   <http://purl.org/ieee1872-owl/sumo-cora#> .
+@prefix sosa:   <http://www.w3.org/ns/sosa/> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+
+# Alignments that are not logical subclass commitments.
+#
+# jz:Actuator / jz:Sensor are *design* elements (corax:DesignObject). Their
+# physical realisations are devices that play the RPARTS part roles, and
+# SOSA's sosa:Actuator / sosa:Sensor describe physical things too. We therefore
+# use SKOS mapping relations rather than rdfs:subClassOf, so that no design
+# object is ever entailed to be a physical device.
+
+<https://w3id.org/jazari/ontology/alignments>
+    a owl:Ontology ;
+    owl:imports <https://w3id.org/jazari/ontology> ;
+    rdfs:label "JAZARI alignments to CORA, RPARTS and SOSA"@en .
+
+jz:Actuator  skos:closeMatch sosa:Actuator ;
+             skos:relatedMatch rparts:robotActuatingPart .
+jz:Sensor    skos:closeMatch sosa:Sensor ;
+             skos:relatedMatch rparts:robotSensingPart .
+
+# Gaps: IEEE 1872-2015 has no concept of kinematic link or joint. Candidates for a
+# future alignment are documented in docs/ontology/reference-ontologies.md.

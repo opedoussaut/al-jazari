@@ -1,0 +1,9 @@
+# Robot models and their configurations.
+SELECT ?model ?modelLabel ?manufacturer ?category ?config ?configLabel ?nativeName ?baseline ?modeMachine
+WHERE {
+  ?model a jz:RobotModel ; rdfs:label ?modelLabel ; jz:manufacturer ?manufacturer ;
+         jz:category ?category ; jz:hasConfiguration ?config .
+  ?config rdfs:label ?configLabel ; jz:nativeName ?nativeName ; jz:isBaseline ?baseline .
+  OPTIONAL { ?config jz:modeMachine ?modeMachine }
+}
+ORDER BY ?modelLabel ?configLabel

@@ -1,0 +1,12 @@
+# Description files and documents of one configuration ($config), with pinned revision.
+SELECT ?file ?kind ?label ?path ?format ?revision ?sha256 ?url ?repo ?license
+WHERE {
+  { ?config jz:describedIn ?file . BIND("description" AS ?kind) }
+  UNION
+  { ?config rdfs:seeAlso ?file . ?file a jz:TechnicalDocument . BIND("document" AS ?kind) }
+  ?file rdfs:label ?label ; jz:sourcePath ?path ; jz:revision ?revision ; jz:sha256 ?sha256 ;
+        jz:url ?url ; jz:fromRepository ?r .
+  ?r jz:url ?repo ; jz:license ?license .
+  OPTIONAL { ?file jz:sourceFormat ?format }
+}
+ORDER BY ?kind ?path

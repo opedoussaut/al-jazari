@@ -1,0 +1,69 @@
+# JAZARI source manifest.
+#
+# Every upstream repository is pinned to an exact commit. `jazari fetch` clones
+# only the listed sparse paths into .cache/sources/<id> (never committed) and
+# writes sources.lock.json with retrieval date and per-file SHA-256 hashes.
+#
+# Licenses below were checked by hand on the retrieval date. A public GitHub
+# repository does not by itself grant redistribution rights; see
+# docs/sources/robot-sources.md for the full analysis.
+
+sources:
+  - id: unitree_ros
+    repo: https://github.com/unitreerobotics/unitree_ros
+    revision: 15ebe53f4cd77e7d745ae83b9d7ff90e685e8998
+    revision_date: "2026-10-23T15:27:39+08:00"
+    license: BSD-3-Clause
+    license_file: LICENSE
+    copyright: "Copyright (c) 2016-2022 HangZhou YuShu TECHNOLOGY CO.,LTD. (Unitree Robotics)"
+    sparse:
+      - "robots/g1_description/*"
+      - "!*.STL"
+      - "!*.stl"
+      - "!*.dae"
+      - "!*.ipynb"
+      - "LICENSE"
+      - "README.md"
+
+  - id: ieee1872_owl
+    repo: https://github.com/srfiorini/IEEE1872-owl
+    revision: ffb6613350b28c3a710f8daf2a1e9e953ded7ed8
+    license: CC-BY-4.0
+    license_note: >-
+      No LICENSE file in the repository; each OWL file declares in dc:rights that
+      "The ontologies in IEEE1872-owl are CC-BY-4.0" and that the IEEE 1872-2015
+      standard text remains IEEE copyright. JAZARI fetches these files at build
+      time and does not vendor them.
+    sparse:
+      - "*.owl"
+      - "README.md"
+
+robots:
+  - id: unitree-g1
+    name: Unitree G1
+    manufacturer: Unitree Robotics
+    category: humanoid
+    homepage: https://www.unitree.com/g1/
+    configurations:
+      - id: g1-29dof-rev-1-0
+        label: "Unitree G1 29-DoF, hardware revision 1.0"
+        native_name: g1_29dof_rev_1_0
+        mode_machine: 5
+        baseline: true
+        selection_rationale: >-
+          Marked "Up-to-date" in the upstream README, corresponds to current
+          revision-1.0 hardware, has both URDF and MJCF descriptions, has the
+          full 29-DoF body (6x2 leg, 3 waist, 7x2 arm) and no optional hand
+          add-ons, so it is the cleanest baseline for the core body.
+        files:
+          - source: unitree_ros
+            path: robots/g1_description/g1_29dof_rev_1_0.urdf
+            format: urdf
+          - source: unitree_ros
+            path: robots/g1_description/g1_29dof_rev_1_0.xml
+            format: mjcf
+        documents:
+          - source: unitree_ros
+            path: robots/g1_description/README.md
+          - source: unitree_ros
+            path: robots/g1_description/motor_info.md
