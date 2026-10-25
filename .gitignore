@@ -1,0 +1,37 @@
+# upstream sources and generated artefacts (recreated by `jazari fetch/build/validate`)
+.cache/
+knowledge-graphs/generated/
+evaluation/results/*.json
+!evaluation/results/.gitkeep
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# node
+node_modules/
+frontend/dist/
+
+# environment and secrets
+.env
+.env.*
+!.env.example
+
+# models and large binaries
+*.gguf
+*.safetensors
+*.bin
+*.STL
+*.stl
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
+*.tsbuildinfo

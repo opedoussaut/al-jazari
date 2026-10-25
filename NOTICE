@@ -1,0 +1,21 @@
+JAZARI
+Copyright 2026 The JAZARI authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+JAZARI does not redistribute third-party robot descriptions or ontologies. They are fetched
+at pinned revisions by `jazari fetch` (see knowledge-graphs/manifests/sources.yaml) and
+remain under their own licenses:
+
+- Unitree G1 description (unitreerobotics/unitree_ros) - BSD-3-Clause,
+  Copyright (c) 2016-2022 HangZhou YuShu TECHNOLOGY CO.,LTD. ("Unitree Robotics").
+- IEEE1872-owl (srfiorini/IEEE1872-owl), OWL implementation of IEEE 1872-2015
+  CORA/CORAX/RPARTS/POS by S. R. Fiorini, V. F. Rey et al. - CC-BY-4.0 as declared in the
+  OWL files. IEEE 1872-2015 itself is copyright of the IEEE Standards Association; no
+  standard text is reproduced by JAZARI.
+
+Knowledge graphs generated from these sources contain facts extracted from them and keep
+references (URLs, revisions, hashes) to the originals.
+
+JAZARI is an independent project. It is not affiliated with Unitree Robotics, the IEEE,
+NVIDIA or Dassault Systemes.
