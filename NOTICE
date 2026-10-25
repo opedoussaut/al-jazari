@@ -9,6 +9,10 @@ remain under their own licenses:
 
 - Unitree G1 description (unitreerobotics/unitree_ros) - BSD-3-Clause,
   Copyright (c) 2016-2022 HangZhou YuShu TECHNOLOGY CO.,LTD. ("Unitree Robotics").
+- Berkeley Humanoid Lite description (berkeley-humanoids/lite_description) - MIT,
+  Copyright 2026 -T.K.-.
+- ALOHA 2 MuJoCo model (google-deepmind/mujoco_menagerie, aloha/) - BSD-3-Clause,
+  Copyright (c) 2023, Trossen Robotics.
 - IEEE1872-owl (srfiorini/IEEE1872-owl), OWL implementation of IEEE 1872-2015
   CORA/CORAX/RPARTS/POS by S. R. Fiorini, V. F. Rey et al. - CC-BY-4.0 as declared in the
   OWL files. IEEE 1872-2015 itself is copyright of the IEEE Standards Association; no
@@ -17,5 +21,5 @@ remain under their own licenses:
 Knowledge graphs generated from these sources contain facts extracted from them and keep
 references (URLs, revisions, hashes) to the originals.
 
-JAZARI is an independent project. It is not affiliated with Unitree Robotics, the IEEE,
-NVIDIA or Dassault Systemes.
+JAZARI is an independent project. It is not affiliated with Unitree Robotics, Berkeley
+Humanoids, Trossen Robotics, Google DeepMind, the IEEE, NVIDIA or Dassault Systemes.

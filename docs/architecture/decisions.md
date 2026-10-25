@@ -95,3 +95,51 @@ JAZARI's own code, ontology and documentation are Apache-2.0, chosen for its exp
 patent grant. Third-party sources keep their licenses and are listed in `NOTICE` and
 [`docs/sources/robot-sources.md`](../sources/robot-sources.md). The project owner may
 choose differently before the first public release.
+
+## ADR-013: Own sandboxed Xacro expander instead of ROS xacro
+
+ROS `xacro` evaluates `${}` with Python `eval`, reads environment variables and follows
+`$(find)` through the ROS workspace. That is unsafe for untrusted downloads, and it needs a
+ROS install. JAZARI implements the subset that generated descriptions use (`arg`,
+`property`, `include`, `macro` with defaults, calls, `if`/`unless`, arithmetic and boolean
+`${}`), with an AST-whitelisted evaluator. `$(find pkg)` maps to a folder declared in the
+manifest, and includes cannot leave the checkout. Anything else fails loudly. The expander
+is verified against upstream: expanding Berkeley's `lite.urdf.xacro` reproduces the
+generated `lite.urdf`. Every emitted element remembers its source file and line, plus the
+macro call site where per-instance values (such as actuator limits) are written.
+
+## ADR-014: MJCF bodies without joints become "weld" fixed joints
+
+In MJCF a body with no joint is welded to its parent, or to the world at top level. Without
+a graph edge, such bodies looked like extra roots (ALOHA's gripper bases, the biped's IMU
+body). The parser emits a joint of source type `weld` (class `jz:FixedJoint`, 0 DoF) at the
+body's line. It is skipped when an earlier file (URDF/Xacro) already gives that link a
+named parent joint, so formats never produce two parents for one link. Configurations may
+have several roots (ALOHA: two arms bolted to the table).
+
+## ADR-015: Several robots means no silent default robot
+
+With one robot in the graph, a question without a robot name used that robot. With three,
+tools refuse and ask which robot, unless the conversation already has one, or a joint
+name exists in exactly one configuration (`left_knee_joint` is G1-only). A robot name
+selects its baseline configuration; variant words ("lite biped") select another.
+Comparisons call the same tool once per robot.
+
+## ADR-016: Berkeley baseline `lite` plus the `lite_biped` hardware variant
+
+`lite` is the complete humanoid and the fair comparison with the G1. `lite_biped` is added
+because it is the only variant with hardware actuator data (RobStride models, CAN ids,
+torque and current limits, ankle linkage) in its Xacro `ros2_control`. Its Xacro is
+expanded with the upstream default args (`use_mock_hardware=true`), recorded in the graph
+as `jz:xacroArguments`. With those defaults, no IMU is declared in `ros2_control`. The
+MJCF declares the IMU sensors.
+
+## ADR-017: Body regions and independent DoF are derived, and say so
+
+Comparisons need "arm joints", "hand joints" and "independent DoF", but no source states
+regions. JAZARI derives regions from native-name patterns (`left_`/`left/` +
+hip/knee/ankle, shoulder/elbow/wrist/forearm, finger/gripper, waist, neck). On a
+manipulator, `left/waist` is the arm's base joint, not a torso waist. Independent DoF
+subtracts one per one-DoF joint coupling. Both carry a recorded derivation. Comparison
+cells use "not applicable" when a category lacks a part (legs on ALOHA), distinct from
+"not stated".

@@ -1,7 +1,9 @@
-# JAZARI benchmark v0.1 (M2).
+# JAZARI benchmark v0.2 (M3).
 #
 # Every expected value was checked by hand against the pinned sources:
 #   unitree_ros@15ebe53f4cd77e7d745ae83b9d7ff90e685e8998 robots/g1_description/g1_29dof_rev_1_0.{urdf,xml}
+#   lite_description@e582f6b27e2f4954d914f5db9d46e6dd409c74fb robots/lite/{urdf,mjcf}, robots/lite_biped/{xacro,mjcf}
+#   mujoco_menagerie@f3b6013629c7b94f8ee93fd977b161fa8350f9bc aloha/aloha.xml (+ joint_position_actuators.xml)
 #   IEEE1872-owl@ffb6613350b28c3a710f8daf2a1e9e953ded7ed8
 # Fields:
 #   tools        - at least one of these tools must be called (tool-selection score); [] = no tool needed
@@ -9,7 +11,7 @@
 #   abstain      - true if the correct behaviour is to say the knowledge is not available
 #   forbidden    - strings that must not appear (e.g. values from another robot)
 #   review       - "auto" (fully automated) or "expert" (facts are necessary, not sufficient)
-version: 0.1
+version: 0.2
 items:
   # ---------------------------------------------------------------- ontology
   - id: ont-01
@@ -207,7 +209,7 @@ items:
     review: auto
   - id: g1-20
     category: properties
-    question: Show all the actuators for which information is available.
+    question: Show all the Unitree G1 actuators for which information is available.
     tools: [actuators]
     facts: [29, motor]
     review: auto
@@ -253,17 +255,16 @@ items:
   # ---------------------------------------------------------- abstention
   - id: abs-01
     category: abstention
-    question: How many joints does ALOHA 2 have?
-    tools: [joint_summary]
+    question: How many joints does the Boston Dynamics Atlas have?
+    tools: []
     abstain: true
-    forbidden: ["39"]
+    forbidden: ["39", "72"]
     review: auto
   - id: abs-02
     category: abstention
-    question: Explain Berkeley Humanoid Lite's mechanical architecture.
-    tools: [kinematic_structure, joint_summary]
+    question: What is the gear ratio of the ALOHA 2 shoulder motor?
+    tools: [actuators, joint_details, search_documents]
     abstain: true
-    forbidden: [pelvis]
     review: auto
   - id: abs-03
     category: abstention
@@ -282,4 +283,115 @@ items:
     question: What gear ratio does the G1 MJCF state for the knee motor?
     tools: [actuators, joint_details]
     abstain: true
+    review: expert
+
+  # ---------------------------------------------------------- M3: Berkeley Humanoid Lite
+  - id: bhl-01
+    category: architecture
+    question: Explain Berkeley Humanoid Lite's mechanical architecture.
+    tools: [kinematic_structure, joint_summary]
+    configuration: lite
+    facts: [72, pelvis]
+    review: expert
+  - id: bhl-02
+    category: architecture
+    question: How many hand and finger joints does the Berkeley Humanoid Lite have?
+    tools: [joint_summary]
+    facts: [40]
+    review: auto
+  - id: bhl-03
+    category: architecture
+    question: How many degrees of freedom does the Berkeley Humanoid Lite have without its hands?
+    tools: [joint_summary]
+    facts: [32]
+    review: auto
+  - id: bhl-04
+    category: architecture
+    question: Does the Berkeley Humanoid Lite full-body configuration have a floating base?
+    tools: [joint_summary, kinematic_structure]
+    facts: [fixed]
+    review: expert
+  - id: bhl-05
+    category: properties
+    question: Which actuator models drive the Berkeley Humanoid Lite biped legs?
+    tools: [actuators]
+    configuration: lite-biped
+    facts: [rs-06, rs-02, rs-00, rs-05]
+    review: auto
+  - id: bhl-06
+    category: properties
+    question: What are the torque limit and CAN id of the left knee actuator of the Berkeley lite biped?
+    tools: [actuators, joint_details]
+    facts: [36, 34]
+    review: auto
+  - id: bhl-07
+    category: properties
+    question: Which joint of the Berkeley lite biped is driven through a linkage, and what kind?
+    tools: [actuators]
+    facts: [ankle_pitch, four-bar]
+    review: auto
+  - id: bhl-08
+    category: provenance
+    question: Which file states the RobStride actuator data for the Berkeley lite biped?
+    tools: [actuators, configuration_info]
+    facts: [ros2_control]
+    review: auto
+
+  # ---------------------------------------------------------- M3: ALOHA 2
+  - id: alo-01
+    category: architecture
+    question: How many movable joints does ALOHA 2 have, and how many independent degrees of freedom?
+    tools: [joint_summary]
+    configuration: aloha-2-menagerie
+    facts: [16, 14]
+    review: auto
+  - id: alo-02
+    category: architecture
+    question: Which ALOHA 2 joints are coupled, and how?
+    tools: [joint_summary]
+    facts: [left_finger, right_finger]
+    review: auto
+  - id: alo-03
+    category: architecture
+    question: How many separate kinematic trees does the ALOHA 2 model have?
+    tools: [kinematic_structure]
+    facts: [2]
+    review: auto
+  - id: alo-04
+    category: properties
+    question: Which cameras are defined in the ALOHA 2 model and where are they mounted?
+    tools: [sensors]
+    facts: [wrist_cam_left, wrist_cam_right, gripper_base]
+    review: auto
+  - id: alo-05
+    category: architecture
+    question: What makes ALOHA 2 different from a humanoid robot?
+    tools: [joint_summary, kinematic_structure]
+    facts: [bimanual]
+    review: expert
+  - id: alo-06
+    category: abstention
+    question: Which specifications are missing for the ALOHA 2 actuators?
+    tools: [actuators]
+    facts: [model]
+    review: expert
+
+  # ---------------------------------------------------------- M3: comparisons
+  - id: cmp-01
+    category: comparison
+    question: Compare the arm architectures of Unitree G1 and Berkeley Humanoid Lite.
+    tools: [kinematic_structure, joint_summary]
+    facts: [7]
+    review: expert
+  - id: cmp-02
+    category: comparison
+    question: Which has more leg joints, the Unitree G1 or the Berkeley Humanoid Lite?
+    tools: [joint_summary, kinematic_structure]
+    facts: [6, 7, Berkeley]
+    review: auto
+  - id: cmp-03
+    category: comparison
+    question: Compare the grippers of ALOHA 2 with the hands of Berkeley Humanoid Lite.
+    tools: [joint_summary]
+    facts: [40]
     review: expert

@@ -19,9 +19,9 @@ flowchart LR
         QUDT["QUDT<br/>QuantityValue, units"]
         PROV["PROV-O<br/>Entity, wasDerivedFrom"]
     end
-    subgraph JZ["JAZARI ontology 0.1.0"]
+    subgraph JZ["JAZARI ontology 0.2.0"]
         RM["RobotModel, RobotConfiguration<br/>⊑ corax:Design"]
-        EL["ModelElement ⊑ corax:DesignObject<br/>Link, Joint (+7 types), Actuator, Sensor"]
+        EL["ModelElement ⊑ corax:DesignObject<br/>Link, Joint (+7 types), Actuator, Sensor, JointCoupling"]
         EV["DescriptionFile, SourceMention,<br/>EvidenceType ⊑ prov:Entity"]
         RI["RobotInstance ⊑ cora:Robot"]
     end
@@ -55,7 +55,7 @@ flowchart LR
 
 ## JAZARI extension
 
-File: [`ontology/jazari/jazari.ttl`](../../ontology/jazari/jazari.ttl), version 0.1.0,
+File: [`ontology/jazari/jazari.ttl`](../../ontology/jazari/jazari.ttl), version 0.2.0,
 namespace `https://w3id.org/jazari/ontology#`.
 
 Model, configuration and instance are kept distinct:
@@ -71,6 +71,16 @@ Joint classes and DoF table: `RevoluteJoint`, `ContinuousJoint`, `PrismaticJoint
 written (`revolute`, `hinge`, `free`…) is kept on each `jz:SourceMention`.
 
 Evidence types (`jz:EvidenceType`): `Extracted`, `Derived`, `Inferred`, `Curated`.
+
+Added in 0.2.0 (M3):
+- `jz:JointCoupling`, with `jz:dependentJoint`, `jz:independentJoint` and
+  `jz:polynomialCoefficients`, for MJCF `<equality><joint>` (ALOHA grippers)
+- actuator hardware facts from `ros2_control`: `jz:actuatorModel`, `jz:hardwareAddress`,
+  `jz:hardwarePlugin`, `jz:commandInterface`, `jz:transmissionType`,
+  `jz:transmissionParameters`, and `jz:currentLimit` (QUDT ampere). There is also `jz:mjcfKp`
+- `jz:effortLimit` no longer has a joint-only domain: actuators state force limits too
+- `jz:sensorDetail` for camera attributes, and `jz:xacroArguments` on Xacro files
+- an MJCF body without a joint is a `jz:FixedJoint` with source type `weld`
 
 ## Class and property mapping table
 
@@ -102,6 +112,11 @@ Evidence types (`jz:EvidenceType`): `Extracted`, `Derived`, `Inferred`, `Curated
 - **Parsing tests:** all `.ttl` files parse, and all named `.rq` queries compile as
   read-only SPARQL.
 
-Current result for the G1: SHACL conforms, 0 structural errors, 6 cross-format
-inconsistencies (effort limits), 29 values stated in one format only (velocity limits
-exist only in the URDF).
+Current results:
+
+| Configuration | SHACL | Structural errors | Cross-format inconsistencies | Stated in one format only |
+|---|---|---|---|---|
+| G1 29-DoF rev 1.0 | conforms | 0 | 6 (effort limits, URDF 35 vs MJCF 50 N·m) | 29 (velocity limits) |
+| Berkeley `lite` | conforms | 0 | 0 | 72 (velocity limits) |
+| Berkeley `lite_biped` | conforms | 0 | 0 (Xacro torque limits = MJCF forcerange) | 28 (velocity and current limits) |
+| ALOHA 2 | conforms | 0 | — (single format) | — |

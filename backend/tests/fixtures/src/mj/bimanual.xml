@@ -1,0 +1,32 @@
+<mujoco model="bimanual">
+  <compiler angle="radian"/>
+  <default>
+    <default class="arm">
+      <joint axis="0 1 0" actuatorfrcrange="-10 10"/>
+      <position kp="50" forcerange="-9 9"/>
+      <default class="finger">
+        <joint type="slide" range="0 0.04"/>
+        <position kp="200" forcerange="-5 5"/>
+      </default>
+    </default>
+  </default>
+  <worldbody>
+    <camera name="overview" pos="0 0 2"/>
+    <body name="left/base" childclass="arm">
+      <body name="left/link1">
+        <joint name="left/shoulder" range="-1 1"/>
+        <body name="left/finger_a"><joint name="left/finger_a" class="finger"/></body>
+        <body name="left/finger_b"><joint name="left/finger_b" class="finger"/>
+          <camera name="left/wrist_cam"/>
+        </body>
+      </body>
+    </body>
+    <body name="right/base" childclass="arm">
+      <body name="right/link1"><joint name="right/shoulder" range="-1 1"/></body>
+    </body>
+  </worldbody>
+  <equality>
+    <joint joint1="left/finger_b" joint2="left/finger_a" polycoef="0 1 0 0 0"/>
+  </equality>
+  <include file="actuators.xml"/>
+</mujoco>

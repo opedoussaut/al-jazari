@@ -9,13 +9,14 @@ answers; it never computes the numbers.
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from rdflib import URIRef
+from rdflib import Literal, URIRef
 
 from ..config import Settings
 from ..kg import GraphStore
@@ -33,6 +34,32 @@ class ToolSpec:
     parameters: dict[str, str]  # name -> description
     fn: Callable[..., ToolResult]
     needs_configuration: bool = True
+
+
+# words too generic to identify a robot ("lite" is kept: it names Berkeley's variants)
+_STOPWORDS = {"robot", "robots", "the", "a", "of", "and", "humanoid", "2", "model", "configuration",
+              "selected", "description", "menagerie", "full", "body", "v2", "dof", "29dof", "rev", "1", "0"}
+
+# native-name words -> body part, for the derived region grouping
+_PARTS = (
+    (("finger", "thumb", "gripper", "hand"), "hand"),
+    (("hip", "knee", "ankle"), "leg"),
+    (("shoulder", "elbow", "wrist", "forearm"), "arm"),
+    (("neck", "head"), "neck"),
+)
+
+
+def body_region(name: str) -> str:
+    """Body region from a joint's native name: a naming convention, not a source statement."""
+    n = name.lower()
+    side = next((s for s in ("left", "right") if n.startswith((f"{s}_", f"{s}/"))), "")
+    for keys, part in _PARTS:
+        if any(k in n for k in keys):
+            return f"{side}_{part}" if side else part
+    if "waist" in n:
+        # on a manipulator arm (ALOHA "left/waist") the waist is the arm's base yaw joint
+        return f"{side}_arm" if side else "waist"
+    return "other"
 
 
 def _short(rev: str) -> str:
@@ -107,19 +134,53 @@ class Toolbox:
                         "uri": f"{JZR}{robot.id}/{c.id}"})
         return out
 
-    def resolve_configuration(self, text: str | None) -> dict | None:
+    def resolve_configuration(self, text: str | None, robot_id: str | None = None) -> dict | None:
         if not text:
             return None
         t = text.strip().lower()
-        configs = self.configurations()
+        configs = [c for c in self.configurations() if robot_id in (None, c["robot_id"])]
         for c in configs:
             if t in (c["id"], c["native_name"].lower(), c["uri"].lower()):
                 return c
-        tokens = set(t.replace("-", " ").replace("_", " ").split())
-        matches = [c for c in configs
-                   if tokens & set(f"{c['robot']} {c['robot_id']}".lower().replace("-", " ").split())]
-        baseline = [c for c in matches if c["baseline"]]
-        return (baseline or matches or [None])[0]
+        def words(s: str) -> set[str]:
+            return set(re.sub(r"[-_/(),.]", " ", s.lower()).split())
+
+        tokens = words(t) - _STOPWORDS
+        # a robot matches on its distinctive name words; a variant wins if its own
+        # label/native name adds matches (e.g. "lite biped"), otherwise the baseline
+        scored = []
+        for c in configs:
+            robot_hits = tokens & (words(f"{c['robot']} {c['robot_id']}") - _STOPWORDS)
+            if not robot_hits:
+                continue
+            variant_hits = tokens & (words(f"{c['native_name']} {c['id']}") - words(c["robot"]) - _STOPWORDS)
+            scored.append((len(variant_hits), c["baseline"], len(robot_hits), c))
+        if not scored:
+            return None
+        return max(scored, key=lambda x: x[:3])[3]
+
+    def _configuration_with_joint(self, joint: str) -> dict | None:
+        """The configuration whose joint names contain this exact name, if exactly one does."""
+        rows = self.store.select(
+            "SELECT DISTINCT ?config WHERE { ?config jz:hasElement ?j . ?j jz:childLink ?c ; jz:nativeName ?n }",
+            {"n": Literal(joint.strip())})
+        matches = [c for c in self.configurations() if any(r["config"] == c["uri"] for r in rows)]
+        return matches[0] if len(matches) == 1 else None
+
+    def mentioned_configurations(self, text: str) -> list[dict]:
+        """One configuration per robot named in the text, in order of first mention."""
+        lowered = text.lower()
+        found = []
+        for robot_id in dict.fromkeys(c["robot_id"] for c in self.configurations()):
+            configs = [c for c in self.configurations() if c["robot_id"] == robot_id]
+            robot = next((c for c in configs if c["baseline"]), configs[0])
+            names = set(re.sub(r"[-_/(),.]", " ", f"{robot['robot']} {robot_id}".lower()).split()) - _STOPWORDS
+            positions = [m.start() for w in names for m in re.finditer(rf"\b{re.escape(w)}\b", lowered)]
+            if positions:
+                # resolve within this robot only, so variant words pick the variant
+                cfg = self.resolve_configuration(f"{robot['robot']} {text}", robot_id=robot_id)
+                found.append((min(positions), cfg or robot))
+        return [c for _, c in sorted(found, key=lambda x: x[0])]
 
     def file_evidence(self, result: ToolResult, config_uri: str) -> list[dict]:
         files = self.run_query(result, "configuration_files", config=URIRef(config_uri))
@@ -141,8 +202,7 @@ class Toolbox:
         r.summary = {"robots": [{"model": x["modelLabel"], "category": x["category"],
                                  "configuration": x["config"].rsplit("/", 1)[-1],
                                  "label": x["configLabel"], "baseline": x["baseline"]} for x in rows]}
-        r.summary["note"] = ("Only the robots listed are ingested so far. Berkeley Humanoid Lite and "
-                             "ALOHA 2 are planned for milestone M3 and are not in the graph yet.")
+        r.summary["note"] = "Only the robots and configurations listed are in the knowledge graph."
         return r
 
     def configuration_info(self, configuration: dict) -> ToolResult:
@@ -191,33 +251,34 @@ class Toolbox:
                 only[next(iter(fmts))].append(j["name"])
         for fmt, names in sorted(only.items()):
             notes.append(f"Joints stated only in {fmt.upper()}: {', '.join(names)}.")
-        if floating and "urdf" in by_format and "urdf" not in floating[0]["mentions"]:
-            notes.append("The URDF has no floating base joint (it is commented out in the file); the MJCF "
-                         "declares the pelvis free joint, which adds 6 unactuated DoF for the base.")
+        urdf_like = next((f for f in ("urdf", "xacro") if f in by_format), None)
+        if floating and urdf_like and f"{urdf_like}:" not in floating[0]["mentions"]:
+            notes.append(f"The {urdf_like.upper()} defines no floating base joint; the MJCF declares a free "
+                         f"joint on {floating[0]['child']}, which adds 6 unactuated DoF for the base.")
+        if not floating:
+            notes.append("No floating base joint is stated: the root is fixed to the world in these files.")
 
         r.derivations = [
             "total joints = number of distinct jz:Joint elements of the configuration (union of URDF and MJCF, merged by native name)",
             "articulated DoF = sum of jz:degreesOfFreedom over joints that are neither fixed nor floating",
             "actuated joints = joints targeted by an MJCF <motor>/<position>/... element (jz:drivesJoint)",
             "per-format counts = joints grouped by the jz:SourceMention of each file",
-            ("movable joints by body region = grouping by native-name pattern (left_/right_ + hip/knee/ankle "
-            "= leg, shoulder/elbow/wrist = arm, waist, neck/head); a naming convention, not a source statement"),
+            ("movable joints by body region = grouping by native-name pattern (left/right + finger/gripper "
+             "= hand, hip/knee/ankle = leg, shoulder/elbow/wrist/forearm = arm, waist, neck/head); a naming "
+             "convention, not a source statement"),
+            ("independent DoF = articulated DoF minus one per one-DoF joint coupling (MJCF <equality><joint>), "
+             "because a coupled joint's position is a function of another joint's position"),
         ]
         regions: dict[str, list[str]] = defaultdict(list)
         for j in movable:
-            n = j["name"]
-            side = "left_" if n.startswith("left_") else "right_" if n.startswith("right_") else ""
-            if any(k in n for k in ("hip", "knee", "ankle")):
-                region = f"{side}leg"
-            elif any(k in n for k in ("shoulder", "elbow", "wrist")):
-                region = f"{side}arm"
-            elif "waist" in n:
-                region = "waist"
-            elif any(k in n for k in ("neck", "head")):
-                region = "neck"
-            else:
-                region = "other"
-            regions[region].append(n)
+            regions[body_region(j["name"])].append(j["name"])
+        couplings = self.run_query(r, "couplings", config=c)
+        welds = [j["name"] for j in joints if "mjcf:weld" in j["mentions"]]
+        if welds:
+            notes.append("MJCF bodies without a joint are welded to their parent (or to the world); JAZARI "
+                         f"records them as fixed joints of source type 'weld': {', '.join(welds)}.")
+        articulated_dof = sum(int(j["dof"]) for j in movable)
+        hand = [j["name"] for j in movable if body_region(j["name"]).endswith("hand")]
         r.summary = {
             "configuration": configuration["label"],
             "total_joints_in_graph": len(joints),
@@ -225,8 +286,13 @@ class Toolbox:
             "joints_by_class": {x["class"]: int(x["count"]) for x in counts},
             "joints_by_source_format": {fmt: {"total": sum(cnt.values()), **dict(cnt)}
                                         for fmt, cnt in sorted(by_format.items())},
+            "category": configuration["category"],
             "articulated_joints": len(movable),
-            "articulated_dof": sum(int(j["dof"]) for j in movable),
+            "articulated_dof": articulated_dof,
+            "articulated_dof_without_hands": articulated_dof - len(hand),
+            "joint_couplings": [f"{x['dependent']} = f({x['independent']}), polycoef {x['polycoef']}"
+                                for x in couplings],
+            "independent_dof": articulated_dof - len(couplings),
             "movable_joints_by_body_region": {k: {"count": len(v), "joints": v}
                                               for k, v in sorted(regions.items())},
             "floating_base": ({"joint": floating[0]["name"], "dof": int(floating[0]["dof"]),
@@ -234,9 +300,7 @@ class Toolbox:
             "actuated_joints": len(actuated),
             "movable_joints_without_actuator": unactuated_movable,
             "fixed_joints": [j["name"] for j in joints if j["class"] == "FixedJoint"],
-            "hand_or_finger_joints": [j["name"] for j in joints
-                                      if any(k in j["name"] for k in ("finger", "thumb", "index", "hand"))
-                                      and j["class"] != "FixedJoint"],
+            "hand_or_finger_joints": {"count": len(hand), "joints": hand},
         }
         r.data = {"counts": counts, "joints": joints}
         return r
@@ -253,8 +317,9 @@ class Toolbox:
             if j["parent"]:
                 children[j["parent"]].append(j)
                 child_links.add(j["child"])
-        roots = sorted({j["parent"] for j in joints if j["parent"]} - child_links)
-        root = roots[0] if roots else None
+        all_links = {j["child"] for j in joints} | {j["parent"] for j in joints if j["parent"]}
+        roots = sorted(all_links - child_links)
+        world = {j["child"]: j for j in joints if not j["parent"]}  # floating or welded to world
 
         def tree(link: str) -> dict:
             return {"link": link, "children": [
@@ -271,26 +336,33 @@ class Toolbox:
             for j in kids:
                 walk(j["child"], path + ([j["name"]] if j["class"] not in ("FixedJoint",) else []))
 
-        if root:
+        for root in roots:
             walk(root, [])
         unique = {tuple(ch) for ch in chains if ch}
         maximal = sorted([list(ch) for ch in unique
                           if not any(len(o) > len(ch) and o[:len(ch)] == ch for o in unique)],
                          key=lambda ch: ch[-1])
         r.derivations = [
-            "tree built from jz:parentLink/jz:childLink of every joint; root = link that is never a child",
-            ("serial chains = movable-joint sequences from the root to each leaf link; chains that are a "
-            "prefix of a longer chain are omitted; fixed joints are skipped"),
+            ("tree built from jz:parentLink/jz:childLink of every joint; roots = links that are never a "
+            "child of a joint with a parent (a robot may have several, e.g. two arms bolted to a table)"),
+            ("serial chains = movable-joint sequences from a root to each leaf link; chains that are a "
+             "prefix of a longer chain are omitted; fixed joints are skipped"),
         ]
         floating = [j for j in joints if j["class"] == "FloatingJoint"]
         r.summary = {
-            "configuration": configuration["label"], "root_link": root,
-            "floating_base": floating[0]["name"] + " (6 DoF, stated only in MJCF)" if floating else None,
+            "configuration": configuration["label"], "category": configuration["category"],
+            "root_links": [{"link": rt, "attached_to_world_by": (f"{world[rt]['name']} ({world[rt]['class']})"
+                                                                 if rt in world else "nothing stated")}
+                           for rt in roots],
+            "separate_kinematic_trees": len(roots),
+            "floating_base": (f"{floating[0]['name']} (6 DoF, stated in {floating[0]['mentions']})"
+                              if floating else None),
             "serial_chains": [{"end_link_of_chain": _chain_end(ch, joints), "movable_joints": ch,
                                "length": len(ch)} for ch in maximal],
             "branching": {link: [j["name"] for j in ks] for link, ks in children.items() if len(ks) > 1},
         }
-        r.data = {"root": root, "tree": tree(root) if root else None, "chains": maximal}
+        r.data = {"root": roots[0] if roots else None, "roots": roots, "trees": [tree(rt) for rt in roots],
+                  "tree": tree(roots[0]) if roots else None, "chains": maximal}
         return r
 
     def joint_details(self, configuration: dict, joint: str) -> ToolResult:
@@ -325,14 +397,35 @@ class Toolbox:
                        configuration=configuration["id"])
         rows = self.run_query(r, "actuators", config=c)
         self.file_evidence(r, configuration["uri"])
+        by_name: dict[str, dict] = {}
+        for x in rows:
+            a = by_name.setdefault(x["name"], {"name": x["name"], "drives_joint": x["joint"], "stated_in": {}})
+            for k in ("model", "address", "plugin", "transmission", "transmissionParams", "gear", "kp"):
+                if x[k] is not None:
+                    a[k] = x[k]
+            fmt = a["stated_in"].setdefault(x["format"], {"element": x["type"], "line": x["line"]})
+            if x["effort"] is not None:
+                fmt["effort_limit"] = f"{x['effort']:g} {x['effortUnit']}"
+            if x["current"] is not None:
+                fmt["current_limit_A"] = x["current"]
+        acts = list(by_name.values())
+        stated = sorted({k for a in acts for k in a if k not in ("name", "drives_joint", "stated_in")})
+        missing = [label for key, label in (("model", "actuator/motor model"), ("gear", "gear ratio"),
+                                            ("transmission", "transmission type"))
+                   if not any(key in a for a in acts)]
         r.summary = {
-            "configuration": configuration["label"], "actuator_count": len(rows),
-            "actuator_types_as_written": dict(Counter(x["type"] for x in rows)),
-            "actuators": [f"{x['name']} -> {x['joint']}" for x in rows],
-            "not_stated_in_model": "Motor model, gear ratio, rated torque and electrical data are not stated "
-                                   "by the MJCF actuator elements; motor tables exist only in documentation "
-                                   "(use search_documents).",
+            "configuration": configuration["label"], "actuator_count": len(acts),
+            "actuator_elements_by_format": {f: dict(Counter(x["type"] for x in rows if x["format"] == f))
+                                            for f in sorted({x["format"] for x in rows})},
+            "actuator_models": dict(Counter(a["model"] for a in acts if a.get("model"))),
+            "actuators": acts[:40],
+            "facts_stated_by_sources": stated,
+            "not_stated_in_any_source_file": missing,
+            "note": ("Documentation may list more (use search_documents); values there are document "
+                     "evidence, not part of the robot description files."),
         }
+        if len(acts) > 40:
+            r.summary["actuators_truncated"] = f"first 40 of {len(acts)} shown"
         r.data = rows
         return r
 
@@ -347,11 +440,15 @@ class Toolbox:
                               if any(k in x["name"] for k in ("imu", "d435", "mid360", "camera", "lidar"))})
         r.summary = {
             "configuration": configuration["label"], "sensor_elements": len(rows),
-            "sensors": [{"name": x["name"], "type": x["type"], "mounted_on": x["link"], "format": x["format"]}
+            "by_type": dict(Counter(x["type"] for x in rows)),
+            "sensors": [{"name": x["name"], "type": x["type"],
+                         "mounted_on": x["link"] or ("world frame" if x["type"] == "camera" else "not stated"),
+                         "format": x["format"], **({"detail": x["detail"]} if x["detail"] else {})}
                         for x in rows],
             "frames_named_like_sensors": frame_links,
-            "caution": "Links such as d435_link or mid360_link are coordinate frames in the URDF; the URDF does "
-                       "not declare them as sensors and states no sensor specification.",
+            "caution": ("Links named like sensors (e.g. d435_link, imu frames) are coordinate frames; they are "
+                        "not sensor declarations. Simulation cameras fixed in the world frame may be viewpoints "
+                        "rather than physical cameras; check the robot's documentation."),
         }
         r.data = rows
         return r
@@ -477,6 +574,8 @@ class Toolbox:
                 cfg = self.resolve_configuration(requested if requested else default_configuration)
                 configs = self.configurations()
                 available = ", ".join(f"{c['id']} ({c['robot']})" for c in configs)
+                if cfg is None and not requested and name == "joint_details" and args.get("joint"):
+                    cfg = self._configuration_with_joint(args["joint"])
                 if cfg is None and not requested:
                     if len(configs) != 1:
                         return ToolResult(tool=name, arguments=arguments, ok=False,

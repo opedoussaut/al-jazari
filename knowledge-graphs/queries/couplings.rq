@@ -1,0 +1,12 @@
+# Joint couplings (e.g. MJCF equality constraints) of one configuration ($config).
+SELECT ?name ?dependent ?independent ?polycoef ?line ?fileUrl
+WHERE {
+  ?config jz:hasElement ?c .
+  ?c a jz:JointCoupling ; jz:nativeName ?name ; jz:polynomialCoefficients ?polycoef ;
+     jz:dependentJoint ?d ; jz:independentJoint ?i ; jz:hasMention ?m .
+  ?d jz:nativeName ?dependent .
+  ?i jz:nativeName ?independent .
+  ?m jz:sourceLine ?line ; jz:describedIn ?f .
+  ?f jz:url ?fileUrl .
+}
+ORDER BY ?name

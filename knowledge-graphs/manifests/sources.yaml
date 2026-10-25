@@ -38,6 +38,40 @@ sources:
       - "*.owl"
       - "README.md"
 
+  - id: lite_description
+    repo: https://github.com/berkeley-humanoids/lite_description
+    revision: e582f6b27e2f4954d914f5db9d46e6dd409c74fb
+    license: MIT
+    license_file: LICENSE
+    copyright: "Copyright 2026 -T.K.-"
+    # $(find lite_description) in the Xacro files resolves to this folder of the checkout
+    xacro_packages:
+      lite_description: lite_description
+    sparse:
+      - "lite_description/robots/lite/urdf/*"
+      - "lite_description/robots/lite/mjcf/*"
+      - "lite_description/robots/lite/xacro/*"  # used to verify the Xacro expander against lite.urdf
+      - "lite_description/robots/lite/cad/joint_properties.json"
+      - "lite_description/robots/lite_biped/xacro/*"
+      - "lite_description/robots/lite_biped/mjcf/lite_biped.xml"
+      - "LICENSE"
+      - "README.md"
+
+  - id: mujoco_menagerie
+    repo: https://github.com/google-deepmind/mujoco_menagerie
+    revision: f3b6013629c7b94f8ee93fd977b161fa8350f9bc
+    license: BSD-3-Clause
+    license_file: aloha/LICENSE
+    copyright: "Copyright (c) 2023, Trossen Robotics"
+    license_note: >-
+      Menagerie licenses each model separately; the aloha/ folder carries its own
+      BSD-3-Clause LICENSE (Trossen Robotics). Only aloha/ is fetched, without meshes.
+    sparse:
+      - "aloha/*.xml"
+      - "aloha/LICENSE"
+      - "aloha/README.md"
+      - "aloha/CHANGELOG.md"
+
 robots:
   - id: unitree-g1
     name: Unitree G1
@@ -67,3 +101,72 @@ robots:
             path: robots/g1_description/README.md
           - source: unitree_ros
             path: robots/g1_description/motor_info.md
+
+  - id: berkeley-humanoid-lite
+    name: Berkeley Humanoid Lite
+    manufacturer: Berkeley Humanoids (UC Berkeley Hybrid Robotics), open-source design
+    category: humanoid
+    homepage: https://github.com/berkeley-humanoids/lite_description
+    configurations:
+      - id: lite
+        label: "Berkeley Humanoid Lite V2, full body (lite)"
+        native_name: lite
+        baseline: true
+        selection_rationale: >-
+          The upstream README lists six variants (lite, lite_pro, lite_biped,
+          lite_biped_debug, lite_dummy, lite_bimanual). `lite` is the complete V2
+          humanoid (legs, 1-DoF waist, arms, neck, 5-finger hands; 72 DoF) and is
+          the variant comparable with a full humanoid such as the G1. Its URDF and
+          MJCF are generated from the Onshape CAD.
+        files:
+          - source: lite_description
+            path: lite_description/robots/lite/urdf/lite.urdf
+            format: urdf
+          - source: lite_description
+            path: lite_description/robots/lite/mjcf/lite.xml
+            format: mjcf
+        documents:
+          - source: lite_description
+            path: README.md
+      - id: lite-biped
+        label: "Berkeley Humanoid Lite V2, legs only (lite_biped)"
+        native_name: lite_biped
+        selection_rationale: >-
+          Second configuration because it is the variant with a hardware
+          ros2_control description (RobStride actuator models, CAN ids, torque and
+          current limits, four-bar ankle linkage), which only exists in the Xacro
+          files. The Xacro is expanded by JAZARI with the upstream default args.
+        files:
+          - source: lite_description
+            path: lite_description/robots/lite_biped/xacro/lite_biped.urdf.xacro
+            format: xacro
+          - source: lite_description
+            path: lite_description/robots/lite_biped/mjcf/lite_biped.xml
+            format: mjcf
+        documents:
+          - source: lite_description
+            path: README.md
+
+  - id: aloha-2
+    name: ALOHA 2
+    manufacturer: Trossen Robotics (hardware); MJCF model by Google DeepMind
+    category: bimanual manipulator
+    homepage: https://aloha-2.github.io/
+    configurations:
+      - id: aloha-2-menagerie
+        label: "ALOHA 2 bimanual workcell, MuJoCo Menagerie model"
+        native_name: aloha
+        baseline: true
+        selection_rationale: >-
+          The only openly licensed ALOHA 2 description named in the brief. It is a
+          simplified MJCF derived from the ViperX 300 6DOF model, with system-identified
+          actuator and joint parameters (README). aloha.xml includes the joint-position
+          actuator file; scene.xml (table, extra cameras) is environment, not robot,
+          and is not ingested; the README documents its cameras.
+        files:
+          - source: mujoco_menagerie
+            path: aloha/aloha.xml
+            format: mjcf
+        documents:
+          - source: mujoco_menagerie
+            path: aloha/README.md

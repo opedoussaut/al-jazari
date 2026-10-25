@@ -2,8 +2,8 @@
 
 from .mjcf import parse_mjcf
 from .model import ParsedDescription
-from .urdf import parse_urdf
+from .urdf import parse_urdf, parse_xacro
 
 PARSERS = {"urdf": parse_urdf, "mjcf": parse_mjcf}
 
-__all__ = ["PARSERS", "ParsedDescription", "parse_mjcf", "parse_urdf"]
+__all__ = ["PARSERS", "ParsedDescription", "parse_mjcf", "parse_urdf", "parse_xacro"]

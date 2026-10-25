@@ -22,7 +22,7 @@ jzs:ConfigurationShape a sh:NodeShape ;
     sh:property [ sh:path jz:selectionRationale ; sh:maxCount 1 ] .
 
 jzs:ModelElementShape a sh:NodeShape ;
-    sh:targetClass jz:Link, jz:Joint, jz:Actuator, jz:Sensor ;
+    sh:targetClass jz:Link, jz:Joint, jz:Actuator, jz:Sensor, jz:JointCoupling ;
     sh:property [ sh:path jz:nativeName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
     sh:property [ sh:path jz:describedIn ; sh:minCount 1 ; sh:class jz:DescriptionFile ;
                   sh:message "Every model element must be attributable to a source file." ] ;
@@ -34,7 +34,7 @@ jzs:MentionShape a sh:NodeShape ;
     sh:property [ sh:path jz:describedIn ; sh:minCount 1 ; sh:maxCount 1 ; sh:class jz:DescriptionFile ] ;
     sh:property [ sh:path jz:sourceLine ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ] ;
     sh:property [ sh:path jz:sourceType ; sh:maxCount 1 ] ;
-    sh:property [ sh:path jz:sourceFormat ; sh:minCount 1 ; sh:in ( "urdf" "mjcf" ) ] .
+    sh:property [ sh:path jz:sourceFormat ; sh:minCount 1 ; sh:in ( "urdf" "xacro" "mjcf" ) ] .
 
 jzs:JointShape a sh:NodeShape ;
     sh:targetClass jz:Joint ;
@@ -64,7 +64,7 @@ jzs:QuantityShape a sh:NodeShape ;
                   sh:in ( <http://qudt.org/vocab/unit/RAD> <http://qudt.org/vocab/unit/M>
                           <http://qudt.org/vocab/unit/KiloGM> <http://qudt.org/vocab/unit/N-M>
                           <http://qudt.org/vocab/unit/N> <http://qudt.org/vocab/unit/RAD-PER-SEC>
-                          <http://qudt.org/vocab/unit/M-PER-SEC> ) ] ;
+                          <http://qudt.org/vocab/unit/M-PER-SEC> <http://qudt.org/vocab/unit/A> ) ] ;
     sh:property [ sh:path jz:describedIn ; sh:minCount 1 ; sh:maxCount 1 ] ;
     sh:property [ sh:path jz:evidenceType ; sh:minCount 1 ; sh:maxCount 1 ;
                   sh:in ( jz:Extracted jz:Derived jz:Inferred jz:Curated ) ] .
@@ -82,3 +82,8 @@ jzs:DescriptionFileShape a sh:NodeShape ;
                   sh:pattern "^[0-9a-f]{40}$" ; sh:message "Sources must be pinned to a full commit SHA." ] ;
     sh:property [ sh:path jz:sha256 ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^[0-9a-f]{64}$" ] ;
     sh:property [ sh:path jz:fromRepository ; sh:minCount 1 ; sh:maxCount 1 ] .
+
+jzs:CouplingShape a sh:NodeShape ;
+    sh:targetClass jz:JointCoupling ;
+    sh:property [ sh:path jz:dependentJoint ; sh:minCount 1 ; sh:maxCount 1 ; sh:class jz:Joint ] ;
+    sh:property [ sh:path jz:independentJoint ; sh:minCount 1 ; sh:maxCount 1 ; sh:class jz:Joint ] .

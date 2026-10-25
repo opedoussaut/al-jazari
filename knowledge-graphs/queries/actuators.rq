@@ -1,5 +1,7 @@
-# Actuators of one configuration ($config) and the joints they drive.
-SELECT ?name ?type ?joint ?gear ?format ?line ?fileUrl
+# Actuators of one configuration ($config): the joint they drive and the hardware facts
+# each source states (one row per actuator and source format).
+SELECT ?name ?type ?joint ?format ?line ?fileUrl ?gear ?kp ?model ?address ?plugin
+       ?transmission ?transmissionParams ?effort ?effortUnit ?current
 WHERE {
   ?config jz:hasElement ?a .
   ?a a jz:Actuator ; jz:nativeName ?name ; jz:hasMention ?m .
@@ -7,5 +9,15 @@ WHERE {
   ?f jz:url ?fileUrl .
   OPTIONAL { ?a jz:drivesJoint ?j . ?j jz:nativeName ?joint }
   OPTIONAL { ?a jz:mjcfGear ?gear }
+  OPTIONAL { ?a jz:mjcfKp ?kp }
+  OPTIONAL { ?a jz:actuatorModel ?model }
+  OPTIONAL { ?a jz:hardwareAddress ?address }
+  OPTIONAL { ?a jz:hardwarePlugin ?plugin }
+  OPTIONAL { ?a jz:transmissionType ?transmission }
+  OPTIONAL { ?a jz:transmissionParameters ?transmissionParams }
+  OPTIONAL { ?a jz:effortLimit ?eq . ?eq jz:describedIn ?ef ; qudt:numericValue ?effort ; qudt:unit ?eu .
+             ?ef jz:sourceFormat ?format . BIND(STRAFTER(STR(?eu), "unit/") AS ?effortUnit) }
+  OPTIONAL { ?a jz:currentLimit ?cq . ?cq jz:describedIn ?cf ; qudt:numericValue ?current .
+             ?cf jz:sourceFormat ?format }
 }
-ORDER BY ?name
+ORDER BY ?name ?format

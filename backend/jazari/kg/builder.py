@@ -1,28 +1,32 @@
 """Turn parsed robot descriptions into an ontology-grounded RDF knowledge graph.
 
-Merge policy for one configuration described by several files (URDF + MJCF):
-- links and joints with the same native name are the same model element; each file
-  contributes a jz:SourceMention (file, line, type as written);
-- every quantity is a separate qudt:QuantityValue per file, so values from different
+Merge policy for one configuration described by several files (URDF/Xacro + MJCF):
+- links, joints and actuators with the same native name are the same model element;
+  each format contributes a jz:SourceMention (file, line, type as written). The file is
+  the one where the element is actually written (an included file, a Xacro macro);
+- every quantity is a separate qudt:QuantityValue per format, so values from different
   formats are never silently combined;
 - structural facts (normalised class, parent/child) come from the first file listed in
-  the manifest; disagreements are recorded as conflicts for the validation report.
+  the manifest; disagreements are recorded as conflicts for the validation report;
+- an MJCF body without a joint becomes a jz:FixedJoint of source type "weld" only when no
+  earlier file already gives that link a parent joint.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import quote
 
 from rdflib import RDF, RDFS, XSD, Graph, Literal, URIRef
 
 from ..fetch import sha256
-from ..ingestion import PARSERS, ParsedDescription
+from ..ingestion import ParsedDescription, parse_mjcf, parse_urdf, parse_xacro
 from ..ingestion.model import Joint, Quantity
-from ..manifest import Configuration, Manifest, Robot
+from ..manifest import Configuration, Manifest, Robot, SourceFile
 from .namespaces import JZ, JZR, PREFIXES, QUDT, UNIT
 
-# normalised class and DoF for each (format, source type)
+# normalised class and DoF for each (format, source type); xacro is URDF after expansion
 _JOINT_CLASS = {
     ("urdf", "revolute"): (JZ.RevoluteJoint, 1),
     ("urdf", "continuous"): (JZ.ContinuousJoint, 1),
@@ -33,10 +37,12 @@ _JOINT_CLASS = {
     ("mjcf", "slide"): (JZ.PrismaticJoint, 1),
     ("mjcf", "ball"): (JZ.BallJoint, 3),
     ("mjcf", "free"): (JZ.FloatingJoint, 6),
+    ("mjcf", "weld"): (JZ.FixedJoint, 0),
 }
 
 
 def joint_class(fmt: str, joint: Joint) -> tuple[URIRef, int]:
+    fmt = "urdf" if fmt == "xacro" else fmt
     if fmt == "mjcf" and joint.source_type == "hinge":
         return (JZ.RevoluteJoint, 1) if joint.lower is not None else (JZ.ContinuousJoint, 1)
     try:
@@ -61,6 +67,19 @@ def new_graph() -> Graph:
     return g
 
 
+def parse_file(manifest: Manifest, sf: SourceFile, sources_dir: Path) -> ParsedDescription:
+    root = sources_dir / sf.source
+    path = root / sf.path
+    if sf.format == "urdf":
+        return parse_urdf(path)
+    if sf.format == "mjcf":
+        return parse_mjcf(path, sandbox=root)
+    if sf.format == "xacro":
+        pkgs = {k: root / v for k, v in manifest.source(sf.source).xacro_packages.items()}
+        return parse_xacro(path, root, pkgs, sf.xacro_args)
+    raise ValueError(f"unsupported format {sf.format!r}")
+
+
 class ConfigurationBuilder:
     def __init__(self, manifest: Manifest, robot: Robot, config: Configuration, sources_dir: Path):
         self.m, self.robot, self.config, self.sources_dir = manifest, robot, config, sources_dir
@@ -72,7 +91,7 @@ class ConfigurationBuilder:
 
     # ------------------------------------------------------------ uris
     def element(self, kind: str, name: str) -> URIRef:
-        return URIRef(f"{self.config_uri}/{kind}/{name}")
+        return URIRef(f"{self.config_uri}/{kind}/{quote(name, safe='')}")
 
     def file_uri(self, source_id: str, path: str) -> URIRef:
         return JZR[f"source/{source_id}/{path}"]
@@ -102,15 +121,17 @@ class ConfigurationBuilder:
             g.add((self.config_uri, RDFS.seeAlso, doc_uri))
 
         for sf in c.files:
-            path = self.sources_dir / sf.source / sf.path
-            desc = PARSERS[sf.format](path)
+            desc = parse_file(self.m, sf, self.sources_dir)
             file_uri = self._file_node(sf.source, sf.path, JZ.DescriptionFile, sf.format)
+            if sf.format == "xacro":
+                args = " ".join(f"{k}={v}" for k, v in sorted(sf.xacro_args.items()))
+                g.add((file_uri, JZ.xacroArguments, Literal(args)))
             self.g.add((self.config_uri, JZ.describedIn, file_uri))
             self.report.files.append(f"{sf.source}:{sf.path}")
             self.report.warnings += [f"{sf.path}: {w}" for w in desc.warnings]
-            self._add_description(desc, file_uri, sf.format)
+            self._add_description(desc, sf, file_uri)
 
-        self._add_root_link()
+        self._add_root_links()
         return g, self.report
 
     def _file_node(self, source_id: str, path: str, cls: URIRef, fmt: str | None) -> URIRef:
@@ -131,6 +152,16 @@ class ConfigurationBuilder:
             self.g.add((uri, JZ.sourceFormat, Literal(fmt)))
         return uri
 
+    def _file_for(self, sf: SourceFile, path: Path | None, default: URIRef) -> URIRef:
+        """File node of the file where an element is written (included file, Xacro macro)."""
+        if path is None:
+            return default
+        root = (self.sources_dir / sf.source).resolve()
+        rel = Path(path).resolve().relative_to(root).as_posix()
+        if rel == sf.path:
+            return default
+        return self._file_node(sf.source, rel, JZ.DescriptionFile, sf.format)
+
     def _mention(self, el: URIRef, fmt: str, file_uri: URIRef, line: int, stype: str | None) -> None:
         m = URIRef(f"{el}/mention/{fmt}")
         self.g.add((el, JZ.hasMention, m))
@@ -142,13 +173,14 @@ class ConfigurationBuilder:
         if stype:
             self.g.add((m, JZ.sourceType, Literal(stype)))
 
-    def _quantity(self, el: URIRef, prop: URIRef, q: Quantity, fmt: str, file_uri: URIRef) -> None:
+    def _quantity(self, el: URIRef, prop: URIRef, q: Quantity, fmt: str, sf: SourceFile,
+                  default_file: URIRef) -> None:
         node = URIRef(f"{el}/{fmt}/{prop.split('#')[-1]}")
         self.g.add((el, prop, node))
         self.g.add((node, RDF.type, QUDT.QuantityValue))
         self.g.add((node, QUDT.numericValue, Literal(float(q.value), datatype=XSD.double)))
         self.g.add((node, QUDT.unit, UNIT[q.unit]))
-        self.g.add((node, JZ.describedIn, file_uri))
+        self.g.add((node, JZ.describedIn, self._file_for(sf, q.source_file, default_file)))
         self.g.add((node, JZ.evidenceType, JZ.Extracted))
         if q.line:
             self.g.add((node, JZ.sourceLine, Literal(q.line)))
@@ -163,27 +195,33 @@ class ConfigurationBuilder:
         self.g.add((self.config_uri, JZ.hasElement, el))
         return el
 
-    def _add_description(self, d: ParsedDescription, file_uri: URIRef, fmt: str) -> None:
-        g = self.g
+    def _add_description(self, d: ParsedDescription, sf: SourceFile, file_uri: URIRef) -> None:
+        g, fmt = self.g, d.format
         self.report.counts[fmt] = {
-            "links": len(d.links), "joints": len(d.joints),
-            "actuators": len(d.actuators), "sensors": len(d.sensors),
+            "links": len(d.links), "joints": len([j for j in d.joints if j.source_type != "weld"]),
+            "implicit_welds": len([j for j in d.joints if j.source_type == "weld"]),
+            "actuators": len(d.actuators), "sensors": len(d.sensors), "couplings": len(d.couplings),
         }
         for link in d.links:
             el = self._element("link", link.name, JZ.Link)
-            self._mention(el, fmt, file_uri, link.line, "body" if fmt == "mjcf" else "link")
+            self._mention(el, fmt, self._file_for(sf, link.source_file, file_uri), link.line,
+                          "body" if fmt == "mjcf" else "link")
             if link.mass:
-                self._quantity(el, JZ.mass, link.mass, fmt, file_uri)
+                self._quantity(el, JZ.mass, link.mass, fmt, sf, file_uri)
 
+        child_has_parent = {g.value(j, JZ.childLink) for j in g.subjects(JZ.childLink, None)}
         for j in d.joints:
             cls, dof = joint_class(fmt, j)
+            child = self.element("link", j.child)
+            if j.source_type == "weld" and child in child_has_parent:
+                continue  # an earlier file already connects this link with a named joint
             el = self.element("joint", j.name)
             owner = self._structural_owner.get(el)
             if owner is None:
                 self._structural_owner[el] = fmt
                 self._element("joint", j.name, cls)
                 g.add((el, JZ.degreesOfFreedom, Literal(dof)))
-                g.add((el, JZ.childLink, self.element("link", j.child)))
+                g.add((el, JZ.childLink, child))
                 if j.parent:
                     g.add((el, JZ.parentLink, self.element("link", j.parent)))
                 if j.axis:
@@ -199,42 +237,66 @@ class ConfigurationBuilder:
                     self.report.conflicts.append(
                         f"joint {j.name}: parent differs ({owner}: "
                         f"{str(expected_parent).rsplit('/', 1)[-1]}, {fmt}: {j.parent}); kept {owner}")
-            self._mention(el, fmt, file_uri, j.line, j.source_type)
+            self._mention(el, fmt, self._file_for(sf, j.source_file, file_uri), j.line, j.source_type)
             for prop, q in ((JZ.lowerLimit, j.lower), (JZ.upperLimit, j.upper),
                             (JZ.effortLimit, j.effort), (JZ.velocityLimit, j.velocity)):
                 if q is not None:
-                    self._quantity(el, prop, q, fmt, file_uri)
+                    self._quantity(el, prop, q, fmt, sf, file_uri)
 
         for a in d.actuators:
-            el = self._element("actuator", a.name, JZ.Actuator)
-            self._mention(el, fmt, file_uri, a.line, a.source_type)
+            el = self.element("actuator", a.name)
+            if (el, RDF.type, JZ.Actuator) not in g:
+                self._element("actuator", a.name, JZ.Actuator)
+            line, src = (a.call_line, a.call_file) if a.call_line else (a.line, a.source_file)
+            self._mention(el, fmt, self._file_for(sf, src, file_uri), line, a.source_type)
             if a.joint:
                 g.add((el, JZ.drivesJoint, self.element("joint", a.joint)))
-            if a.gear is not None:
-                g.add((el, JZ.mjcfGear, Literal(a.gear, datatype=XSD.double)))
+            for prop, value in ((JZ.mjcfGear, a.gear), (JZ.mjcfKp, a.kp)):
+                if value is not None:
+                    g.add((el, prop, Literal(float(value), datatype=XSD.double)))
+            for prop, value in ((JZ.actuatorModel, a.model), (JZ.hardwareAddress, a.hardware_address),
+                                (JZ.hardwarePlugin, a.hardware_plugin), (JZ.transmissionType, a.transmission),
+                                (JZ.transmissionParameters, a.transmission_parameters)):
+                if value:
+                    g.add((el, prop, Literal(value)))
+            for ci in a.command_interfaces:
+                g.add((el, JZ.commandInterface, Literal(ci)))
+            if a.effort:
+                self._quantity(el, JZ.effortLimit, a.effort, fmt, sf, file_uri)
+            if a.current:
+                self._quantity(el, JZ.currentLimit, a.current, fmt, sf, file_uri)
 
         for s in d.sensors:
             el = self._element("sensor", s.name, JZ.Sensor)
-            self._mention(el, fmt, file_uri, s.line, s.source_type)
+            self._mention(el, fmt, self._file_for(sf, s.source_file, file_uri), s.line, s.source_type)
             if s.attached_to:
                 g.add((el, JZ.mountedOn, self.element("link", s.attached_to)))
+            if s.detail:
+                g.add((el, JZ.sensorDetail, Literal(s.detail)))
 
-    def _add_root_link(self) -> None:
-        links = set(self.g.objects(self.config_uri, JZ.hasElement)) & set(self.g.subjects(RDF.type, JZ.Link))
-        children = {
-            self.g.value(j, JZ.childLink)
-            for j in self.g.subjects(JZ.childLink, None)
-            if self.g.value(j, JZ.parentLink) is not None
-        }
+        for c in d.couplings:
+            el = self._element("coupling", f"{c.joint1}=f({c.joint2})", JZ.JointCoupling)
+            self._mention(el, fmt, self._file_for(sf, c.source_file, file_uri), c.line, "equality/joint")
+            g.add((el, JZ.dependentJoint, self.element("joint", c.joint1)))
+            g.add((el, JZ.independentJoint, self.element("joint", c.joint2)))
+            g.add((el, JZ.polynomialCoefficients, Literal(c.polycoef)))
+
+    def _add_root_links(self) -> None:
+        g = self.g
+        links = set(g.objects(self.config_uri, JZ.hasElement)) & set(g.subjects(RDF.type, JZ.Link))
+        children = {g.value(j, JZ.childLink) for j in g.subjects(JZ.childLink, None)
+                    if g.value(j, JZ.parentLink) is not None}
         roots = sorted(links - children)
         for root in roots:
-            self.g.add((self.config_uri, JZ.rootLink, root))
-        if len(roots) != 1:
-            self.report.warnings.append(f"expected exactly one root link, found {len(roots)}")
+            g.add((self.config_uri, JZ.rootLink, root))
+        if not roots:
+            self.report.warnings.append("no root link found")
 
 
 def build_all(manifest: Manifest, sources_dir: Path, out_dir: Path) -> list[BuildReport]:
     out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("*.ttl"):
+        old.unlink()  # configurations removed from the manifest must not linger
     reports = []
     for robot, config in manifest.configurations():
         g, report = ConfigurationBuilder(manifest, robot, config, sources_dir).build()

@@ -1,6 +1,6 @@
 # JAZARI roadmap
 
-Status as of 2026-10-25.
+Status as of 2026-10-26.
 
 ## M1: Working foundation — done
 
@@ -20,17 +20,19 @@ Status as of 2026-10-25.
 - [x] Chat UI with evidence and trace; Robots, Ontologies and Compare pages on live data
 - [x] 41-question benchmark with automated scoring ([results](evaluation.md))
 
-## M3: Three-robot knowledge — next
+## M3: Three-robot knowledge — done
 
-1. Xacro expansion (sandboxed: no `$(find)` network or shell evaluation) and URDF/MJCF
-   `<include>` resolution.
-2. Berkeley Humanoid Lite: choose and record the baseline configuration, ingest, validate.
-3. ALOHA 2 (Menagerie MJCF): bimanual model, grippers with equality constraints, cameras,
-   tendon/equality elements in the parser.
-4. Curated document facts (`jz:Curated`) for motor tables, e.g. G1 `motor_info.md`, with
-   explicit variant applicability.
-5. Normalised comparison dimensions that respect category differences (humanoid vs
-   bimanual), with "not applicable" distinct from "not stated".
+- [x] Sandboxed Xacro expander (no eval, no env, no path escapes), verified against the
+      generated Berkeley URDF; MJCF `<include>` and nested default classes for actuators
+- [x] Berkeley Humanoid Lite: `lite` (baseline, 72 DoF including 40 hand joints) and
+      `lite_biped` (RobStride actuators, CAN ids, torque/current limits, ankle linkage)
+- [x] ALOHA 2: bimanual model with two kinematic trees, finger couplings (16 articulated vs
+      14 independent DoF), cameras
+- [x] Variant-aware robot resolution, multi-robot comparisons, no silent default robot
+- [x] Comparison API/UI with derived body regions and "not applicable" vs "not stated"
+- [x] Benchmark v0.2 (58 questions) with Berkeley, ALOHA and comparison items
+- [ ] Curated document facts (`jz:Curated`) for motor tables (G1 `motor_info.md`,
+      RobStride spec tables) with explicit variant applicability: moved to M4
 
 ## M4: Semantic reasoning
 

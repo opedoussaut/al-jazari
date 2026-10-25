@@ -37,13 +37,14 @@ def test_joint_counts(engine):
 def test_placeholder_configuration_uses_session_robot(engine):
     r = engine.toolbox.run("actuators", {"configuration": "None"}, "g1-29dof-rev-1-0")
     assert r.ok and r.summary["actuator_count"] == 29
-    # fresh session, no robot named: the only configuration in the graph is used
-    assert engine.toolbox.run("actuators", {"configuration": "None"}, None).ok
+    # fresh session, no robot named, several robots in the graph: ask which one
+    r = engine.toolbox.run("actuators", {"configuration": "None"}, None)
+    assert not r.ok and "ask the user which one" in r.error
 
 
 def test_kinematic_chains(engine):
     s = run(engine, "kinematic_structure", configuration="g1-29dof-rev-1-0").summary
-    assert s["root_link"] == "pelvis"
+    assert [r["link"] for r in s["root_links"]] == ["pelvis"]
     lengths = sorted(c["length"] for c in s["serial_chains"])
     assert lengths == [6, 6, 10, 10]  # 2 legs; waist(3) + arm(7) twice
 
@@ -74,10 +75,10 @@ def test_ontology_lookup_robot(engine):
 
 
 def test_unknown_robot_is_not_answered_with_g1(engine):
-    r = engine.toolbox.run("joint_summary", {"configuration": "ALOHA 2"}, "g1-29dof-rev-1-0")
+    r = engine.toolbox.run("joint_summary", {"configuration": "Boston Dynamics Atlas"}, "g1-29dof-rev-1-0")
     assert not r.ok and "not in the knowledge graph" in r.error
     calls = rule_plan(engine.toolbox, "How many joints does ALOHA 2 have?")
-    assert calls[0].arguments["configuration"] == "ALOHA 2"
+    assert calls[0].arguments["configuration"] == "aloha-2-menagerie"
 
 
 def test_chat_api_without_llm():

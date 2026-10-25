@@ -11,9 +11,9 @@ recreates them.
 |---|---|---|---|
 | [unitreerobotics/unitree_ros](https://github.com/unitreerobotics/unitree_ros) | `15ebe53f4cd77e7d745ae83b9d7ff90e685e8998` (2026-10-23) | BSD-3-Clause | **Ingested** (G1 29-DoF rev 1.0, URDF + MJCF + 2 docs) |
 | [srfiorini/IEEE1872-owl](https://github.com/srfiorini/IEEE1872-owl) | `ffb6613350b28c3a710f8daf2a1e9e953ded7ed8` | CC-BY-4.0 (declared in OWL `dc:rights`; no LICENSE file) | **Loaded** (cora, cora-bare, corax, rparts, sumo-cora, pos, annotation) |
-| [berkeley-humanoids/lite_description](https://github.com/berkeley-humanoids/lite_description) | `e582f6b27e2f4954d914f5db9d46e6dd409c74fb` (candidate) | MIT | Planned M3 |
-| [HybridRobotics/Berkeley-Humanoid-Lite](https://github.com/HybridRobotics/Berkeley-Humanoid-Lite) | `984741a3623c93b0583ccfdc479f1f8b1c4d900e` (candidate) | MIT | Planned M3 |
-| [google-deepmind/mujoco_menagerie `aloha/`](https://github.com/google-deepmind/mujoco_menagerie/tree/main/aloha) | `f3b6013629c7b94f8ee93fd977b161fa8350f9bc` (candidate) | `aloha/LICENSE`: BSD-3-Clause, © 2023 Trossen Robotics (repo-level: per-model licenses) | Planned M3 |
+| [berkeley-humanoids/lite_description](https://github.com/berkeley-humanoids/lite_description) | `e582f6b27e2f4954d914f5db9d46e6dd409c74fb` | MIT | **Ingested** (`lite` URDF + MJCF; `lite_biped` Xacro + MJCF) |
+| [HybridRobotics/Berkeley-Humanoid-Lite](https://github.com/HybridRobotics/Berkeley-Humanoid-Lite) | `984741a3623c93b0583ccfdc479f1f8b1c4d900e` | MIT | Not used: the V2 descriptions live in `lite_description` |
+| [google-deepmind/mujoco_menagerie `aloha/`](https://github.com/google-deepmind/mujoco_menagerie/tree/main/aloha) | `f3b6013629c7b94f8ee93fd977b161fa8350f9bc` | `aloha/LICENSE`: BSD-3-Clause, © 2023 Trossen Robotics (Menagerie licenses each model separately) | **Ingested** (`aloha.xml` + included actuator file) |
 
 ## Unitree G1
 
@@ -53,19 +53,58 @@ Documents indexed: `robots/g1_description/README.md` (variant table), `motor_inf
 (motor types, effort and velocity). Meshes (`*.STL`) are excluded from the fetch until 3D
 visualisation (M5).
 
-## Berkeley Humanoid Lite (planned M3)
+## Berkeley Humanoid Lite
 
-`lite_description` provides URDF/MJCF and several configurations (full humanoid, biped,
-bimanual). Baseline selection and variant identity will be recorded in the manifest, the
-same way as for the G1. Xacro expansion support is required.
+The upstream README lists six V2 variants: `lite` (full body, 1-DoF waist, 72 DoF),
+`lite_pro` (3-DoF waist, 74), `lite_biped` (legs, 14), `lite_biped_debug`, `lite_dummy`
+(V1 upper body, 17) and `lite_bimanual` (arms, 14). The URDF and MJCF of each are generated
+from the Onshape CAD.
 
-## ALOHA 2 (planned M3)
+**Baseline: `lite`.** This is the complete humanoid and the variant comparable with the G1.
+**Second configuration: `lite_biped`.** Only this variant's Xacro has a hardware
+`ros2_control` description. It is kept as its own `jz:RobotConfiguration` and never
+mixed with `lite`.
+
+| Aspect | `lite` URDF | `lite` MJCF | `lite_biped` Xacro (expanded) | `lite_biped` MJCF |
+|---|---|---|---|---|
+| Links / bodies | 73 | 73 | 17 | 16 |
+| Joints | 72 revolute | 72 hinge + pelvis welded to world | 14 revolute + 2 fixed | 14 hinge + 1 free |
+| Hands | 40 finger joints (5 fingers × 4 joints × 2) | same, 40 position actuators | — | — |
+| Root | `pelvis`, no floating joint | `pelvis` body without joint (fixed to world) | `base_link` → `pelvis` | `pelvis` free joint |
+| Actuators | none (URDF) | 72 `<position>` with `forcerange` | 14 `ros2_control` joints: RobStride model, CAN id, torque and current limit | 14 `<position>` |
+| Sensors | — | — | IMU only with `sim_mujoco` or real hardware (not with default args) | gyro, accelerometer, velocimeter, framequat, framepos |
+
+Actuator models in `lite_biped`: 6× rs-06 (hip pitch/roll, knee), 2× rs-02 (hip yaw), 4×
+rs-00 (ankle yaw and pitch), 2× rs-05 (ankle roll). The ankle pitch is driven through a
+four-bar linkage, whose raw parameters are stored as written; the source states no units
+for them. Torque limits in the Xacro match the MJCF `forcerange`. Current limits exist only
+in the Xacro.
+
+**Xacro expansion check:** expanding `lite.urdf.xacro` with JAZARI's sandboxed expander
+reproduces every joint of the generated `lite.urdf` (parent, child, type, limits, axis)
+and every link mass. The only difference is the extra `base_link_to_pelvis` fixed joint in
+the Xacro. This is an automated test.
+
+## ALOHA 2
 
 MuJoCo Menagerie `aloha/` is a simplified bimanual MJCF derived from the ViperX 300 6DOF
 model. Its README documents system-identified actuator gains, damping and friction, a
-position-controlled linear gripper actuator with an equality constraint, and 4 cameras
-(overhead, worm's-eye, two wrist cameras matched to RealSense D405 intrinsics). It is a
-bimanual manipulation platform and will be modelled as such, not as a humanoid.
+position-controlled gripper with an equality constraint, and 4 cameras: overhead,
+worm's-eye, and two wrist cameras matched to RealSense D405 intrinsics. ALOHA 2 is modelled
+as a **bimanual manipulator**, not a humanoid.
+
+What `aloha.xml` (with its `<include>`d `joint_position_actuators.xml`) states:
+
+- 2 separate kinematic trees (`left/base_link`, `right/base_link`), each welded to the world
+- per arm: 6 revolute joints (waist, shoulder, elbow, forearm_roll, wrist_angle,
+  wrist_rotate) and 2 prismatic finger joints
+- 2 joint couplings (`<equality><joint>`, polycoef `0 1 0 0 0`): each right finger follows
+  its left finger. So there are 16 articulated DoF but 14 independent DoF
+- 14 `<position>` actuators with class-default gains (`kp`) and control ranges. No motor
+  model or gear ratio is stated
+- 4 cameras in `aloha.xml`: two wrist cameras on the gripper bases, and two world-fixed
+  viewpoints (`teleoperator_pov`, `collaborator_pov`). The overhead and worm's-eye cameras
+  are in `scene.xml`, which is environment and is not ingested.
 
 ## Redistribution policy
 

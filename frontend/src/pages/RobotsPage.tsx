@@ -6,6 +6,7 @@ const CLASS_STYLE: Record<string, string> = {
   RevoluteJoint: "bg-navy-soft text-navy",
   FixedJoint: "bg-mist text-ink-soft",
   FloatingJoint: "bg-amber-50 text-amber-700",
+  ContinuousJoint: "bg-sky-50 text-sky-700",
   PrismaticJoint: "bg-violet-50 text-violet-700",
 };
 
@@ -55,24 +56,20 @@ export default function RobotsPage() {
             <div className="label">{r.manufacturer} · {r.category}</div>
             <div className="mt-1 text-lg font-semibold">{r.name}</div>
             <div className="text-sm text-ink-soft">{c.label}</div>
+            {!c.baseline && <div className="mt-1 text-[11px] text-ink-mute">additional variant</div>}
           </button>
         )))}
-        {["Berkeley Humanoid Lite", "ALOHA 2"].map((n) => (
-          <div key={n} className="rounded-2xl border border-dashed border-line p-4 text-left">
-            <div className="label">Planned · milestone M3</div>
-            <div className="mt-1 text-lg font-semibold text-ink-mute">{n}</div>
-            <div className="text-sm text-ink-mute">Not ingested yet</div>
-          </div>
-        ))}
       </div>
 
       {info && comp && s && (
         <>
           <section className="mt-8 grid gap-4 md:grid-cols-4">
             <Stat label="Joints in graph" value={s.total_joints_in_graph} />
-            <Stat label="Articulated DoF" value={s.articulated_dof} />
-            <Stat label="Actuated joints" value={s.actuated_joints} />
-            <Stat label="Sensors (MJCF)" value={comp.sensors.length} />
+            <Stat label="Articulated DoF" value={s.articulated_dof}
+                  hint={s.hand_or_finger_joints.count ? `${s.hand_or_finger_joints.count} in hands/grippers` : undefined} />
+            <Stat label="Independent DoF" value={s.independent_dof}
+                  hint={s.joint_couplings.length ? `${s.joint_couplings.length} joint coupling(s)` : undefined} />
+            <Stat label="Actuators · sensors" value={`${new Set(comp.actuators.map((a) => a.name)).size} · ${comp.sensors.length}`} />
           </section>
 
           <section className="mt-4 card p-5">
@@ -96,15 +93,21 @@ export default function RobotsPage() {
 
           <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
             <div className="card max-h-[640px] overflow-auto p-5">
-              <div className="label mb-2">Kinematic tree · root {comp.kinematics.root}</div>
-              <Tree node={comp.kinematics.tree} selected={selected} onSelect={setSelected} />
+              <div className="label mb-2">
+                {comp.kinematics.trees.length > 1
+                  ? `Kinematic trees · ${comp.kinematics.trees.length} roots`
+                  : `Kinematic tree · root ${comp.kinematics.root}`}
+              </div>
+              {comp.kinematics.trees.map((t) => (
+                <div key={t.link} className="mb-3"><Tree node={t} selected={selected} onSelect={setSelected} /></div>
+              ))}
             </div>
             <div className="card max-h-[640px] overflow-auto p-0">
               <table className="w-full text-[13px]">
                 <thead className="sticky top-0 bg-white">
                   <tr className="border-b border-line text-left text-ink-mute">
                     <th className="px-3 py-2 font-medium">Joint</th><th className="px-2 font-medium">Class</th>
-                    <th className="px-2 font-medium">Parent → child</th><th className="px-2 font-medium">Limits (URDF | MJCF)</th>
+                    <th className="px-2 font-medium">Parent → child</th><th className="px-2 font-medium">Limits (URDF/Xacro | MJCF)</th>
                     <th className="px-2 font-medium">Source</th>
                   </tr>
                 </thead>
@@ -126,20 +129,24 @@ export default function RobotsPage() {
 
           <section className="mt-4 grid gap-4 md:grid-cols-2">
             <div className="card p-5">
-              <div className="label mb-2">Sensors declared in MJCF</div>
+              <div className="label mb-2">Sensors and cameras declared in the sources</div>
               <ul className="space-y-1 text-[13px]">
                 {comp.sensors.map((x) => (
                   <li key={x.name}><a className="font-mono hover:text-navy hover:underline" href={`${x.fileUrl}#L${x.line}`} target="_blank" rel="noreferrer">{x.name}</a>
-                    <span className="text-ink-mute"> · {x.type} on {x.link}</span></li>
+                    <span className="text-ink-mute"> · {x.type} on {x.link ?? (x.type === "camera" ? "world frame" : "—")}</span></li>
                 ))}
               </ul>
-              <p className="mt-3 text-[12px] text-ink-mute">Frames such as d435_link or mid360_link exist in the URDF but are not declared as sensors there, so they are not listed.</p>
+              {comp.sensors.length === 0 && <p className="text-[13px] text-ink-mute">No sensor elements in these files.</p>}
+              <p className="mt-3 text-[12px] text-ink-mute">Links named like sensors (e.g. d435_link) are coordinate frames, not sensor declarations, so they are not listed.</p>
             </div>
             <div className="card p-5">
-              <div className="label mb-2">Source consistency (URDF vs MJCF)</div>
+              <div className="label mb-2">Source consistency (across formats)</div>
               {validation ? (
                 <>
                   <div className="text-[13px]">SHACL: <b>{validation.shacl_conforms ? "conforms" : "violations"}</b> · structural errors: <b>{validation.errors.length}</b></div>
+                  {validation.inconsistencies.length === 0 && (
+                    <div className="mt-2 text-[13px] text-emerald-700">No disagreements between formats.</div>
+                  )}
                   <ul className="mt-2 space-y-1 text-[13px]">
                     {validation.inconsistencies.map((i: string) => <li key={i} className="text-rose-700">{i}</li>)}
                   </ul>
@@ -154,11 +161,12 @@ export default function RobotsPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
   return (
     <div className="card p-4">
       <div className="label">{label}</div>
       <div className="mt-1 text-3xl font-semibold tracking-tight text-navy">{value}</div>
+      {hint && <div className="mt-0.5 text-[12px] text-ink-mute">{hint}</div>}
     </div>
   );
 }
@@ -184,22 +192,27 @@ function Tree({ node, selected, onSelect, depth = 0 }: { node: TreeNode; selecte
 
 function fmt(v: number) { return Number.isInteger(v) ? String(v) : v.toFixed(3); }
 
+// QUDT unit local names as stored in the graph -> display symbols
+const UNIT: Record<string, string> = { RAD: "rad", M: "m", "N-M": "N·m", N: "N", "RAD-PER-SEC": "rad/s", "M-PER-SEC": "m/s" };
+
 function Limits({ rows }: { rows: QuantityRow[] }) {
   if (!rows.length) return <span className="text-ink-mute">not stated</span>;
   const get = (p: string, f: string) => rows.find((r) => r.property === p && r.format === f);
-  const line = (p: string, label: string, unit: string) => {
-    const u = get(p, "urdf"), m = get(p, "mjcf");
+  const line = (p: string, label: string) => {
+    const u = get(p, "urdf") ?? get(p, "xacro"), m = get(p, "mjcf");
     if (!u && !m) return null;
     const differ = u && m && Math.abs(u.value - m.value) > 1e-4 * Math.max(1, Math.abs(u.value));
+    const unit = (u ?? m)!.unit;
     return (
       <div key={p} className={differ ? "text-rose-700" : ""}>
-        <span className="text-ink-mute">{label}</span> {u ? fmt(u.value) : "—"} | {m ? fmt(m.value) : "—"} <span className="text-ink-mute">{unit}</span>
+        <span className="text-ink-mute">{label}</span> {u ? fmt(u.value) : "—"} | {m ? fmt(m.value) : "—"}{" "}
+        <span className="text-ink-mute">{UNIT[unit] ?? unit}</span>
       </div>
     );
   };
   return (
     <div className="font-mono text-[12px] leading-5">
-      {line("lowerLimit", "min", "rad")}{line("upperLimit", "max", "rad")}{line("effortLimit", "τ", "N·m")}{line("velocityLimit", "ω", "rad/s")}
+      {line("lowerLimit", "min")}{line("upperLimit", "max")}{line("effortLimit", "effort")}{line("velocityLimit", "vel")}
     </div>
   );
 }

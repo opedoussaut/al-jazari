@@ -4,11 +4,11 @@ import Answer, { EvidenceList } from "../components/Answer";
 
 const EXAMPLES = [
   "How many joints are defined in the selected Unitree G1 configuration, and what are their types?",
-  "Show the kinematic structure of Unitree G1.",
+  "Compare the arm architectures of Unitree G1 and Berkeley Humanoid Lite.",
+  "What makes ALOHA 2 different from a humanoid robot?",
+  "Which actuator models drive the Berkeley Humanoid Lite biped legs?",
   "What is a robot according to CORA?",
-  "Show all the actuators for which information is available.",
   "Which values disagree between the G1 URDF and MJCF files?",
-  "What are the limits of the left knee joint?",
 ];
 
 type Turn = { id: string; question: string; response?: ChatResponse; error?: string };

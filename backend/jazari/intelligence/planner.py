@@ -16,13 +16,6 @@ from .tools import Toolbox
 
 PROMPTS = Path(__file__).parent / "prompts"
 
-# Robots on the roadmap but not yet ingested: named explicitly so a question about them
-# is never silently answered with another robot's data.
-PLANNED_ROBOTS = {
-    "berkeley": "Berkeley Humanoid Lite", "humanoid lite": "Berkeley Humanoid Lite",
-    "aloha": "ALOHA 2",
-}
-
 
 def plan_schema(tool_names: list[str]) -> dict:
     return {
@@ -75,14 +68,8 @@ _ONTO_TERM = re.compile(
 def rule_plan(toolbox: Toolbox, question: str) -> list[ToolCall]:
     q = question.lower()
     calls: list[ToolCall] = []
-    robot = None
-    for key, name in PLANNED_ROBOTS.items():
-        if key in q:
-            robot = name
-    if robot is None:
-        cfg = toolbox.resolve_configuration(question)
-        robot = cfg["id"] if cfg else None
-    args = {"configuration": robot} if robot else {}
+    robots = [c["id"] for c in toolbox.mentioned_configurations(question)]
+    args = {"configuration": robots[0]} if robots else {}
 
     def add(name: str, **extra: str) -> None:
         if not any(c.name == name for c in calls):
@@ -111,8 +98,14 @@ def rule_plan(toolbox: Toolbox, question: str) -> list[ToolCall]:
         add("configuration_info")
     if any(k in q for k in ("which robots", "available robots", "list robots", "robots do you")):
         add("list_robots")
-    if not calls and robot:
+    if not calls and robots:
         add("joint_summary")
+    # a comparison names several robots: repeat each robot tool for the others
+    robot_calls = [c for c in calls if "configuration" in c.arguments]
+    for other in robots[1:]:
+        for c in robot_calls:
+            if len(calls) < 4:
+                calls.append(ToolCall(name=c.name, arguments={**c.arguments, "configuration": other}))
     if not calls:
         calls.append(ToolCall(name="search_documents", arguments={"query": question}))
     return calls[:4]

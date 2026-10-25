@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="arm" params="side sign effort:=20">
+    <link name="${side}_upper"><inertial><mass value="${reach * 2}"/></inertial></link>
+    <joint name="${side}_shoulder" type="revolute">
+      <parent link="base"/><child link="${side}_upper"/>
+      <limit lower="${-1.5 * sign}" upper="1.5" effort="${effort}" velocity="3"/>
+    </joint>
+  </xacro:macro>
+  <xacro:macro name="hw" params="name can_id limit">
+    <joint name="${name}">
+      <command_interface name="position"/>
+      <param name="can_id">${can_id}</param>
+      <param name="model">rs-02</param>
+      <param name="torque_limit">${limit}</param>
+    </joint>
+  </xacro:macro>
+</robot>

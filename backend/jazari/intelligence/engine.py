@@ -6,11 +6,11 @@ is recorded in the response trace.
 
 from __future__ import annotations
 
+import threading
 import time
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from functools import lru_cache
 
 from ..config import Settings, get_settings
 from ..kg import GraphStore
@@ -133,6 +133,15 @@ class Engine:
         )
 
 
-@lru_cache
+_ENGINE: Engine | None = None
+_ENGINE_LOCK = threading.Lock()
+
+
 def get_engine() -> Engine:
-    return Engine(get_settings())
+    """Process-wide engine, built once even when the first API requests arrive in parallel."""
+    global _ENGINE
+    if _ENGINE is None:
+        with _ENGINE_LOCK:
+            if _ENGINE is None:
+                _ENGINE = Engine(get_settings())
+    return _ENGINE

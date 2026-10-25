@@ -1,19 +1,23 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 
-const CANDIDATES = ["g1-29dof-rev-1-0", "Berkeley Humanoid Lite", "ALOHA 2"];
-
 export default function ComparePage() {
   const [data, setData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { api.compare(CANDIDATES).then(setData).catch((e) => setError(e.message)); }, []);
+  useEffect(() => {
+    // compare the baseline configuration of every robot in the knowledge graph
+    api.robots()
+      .then((robots) => api.compare(robots.map((r) => (r.configurations.find((c) => c.baseline) ?? r.configurations[0]).id)))
+      .then(setData)
+      .catch((e) => setError(e.message));
+  }, []);
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8">
       <h1 className="text-3xl font-semibold tracking-tight">Compare Robots</h1>
       <p className="mt-1 text-ink-soft">
-        Structured comparison from the knowledge graph. Robots that are not ingested yet are shown as unavailable, never with invented values.
+        Baseline configuration of each robot, read from the knowledge graph. Missing values stay missing, and parts a robot category does not have are marked "not applicable", never filled in.
       </p>
       {error && <div className="mt-4 text-sm text-red-700">{error}</div>}
       {data && (
@@ -52,6 +56,7 @@ export default function ComparePage() {
 
 function Value({ v }: { v: unknown }) {
   if (v === null || v === undefined) return <span className="text-ink-mute">not stated in sources</span>;
+  if (typeof v === "string" && v.startsWith("not applicable")) return <span className="italic text-ink-mute">{v}</span>;
   if (typeof v === "number" || typeof v === "string") return <span>{String(v)}</span>;
   if (Array.isArray(v)) {
     return (

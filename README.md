@@ -9,8 +9,9 @@ and explains the results. Every answer lists its evidence, down to the source li
 The project is named after Ismail al-Jazari (1136–1206), engineer and pioneer of
 mechanical automata.
 
-> **Status: milestone M2.** One robot (Unitree G1, 29-DoF rev 1.0) is ingested end to end.
-> Berkeley Humanoid Lite and ALOHA 2 are next (M3). See the [roadmap](docs/roadmap.md).
+> **Status: milestone M3.** Three robots are ingested end to end: Unitree G1 (29-DoF rev 1.0),
+> Berkeley Humanoid Lite (`lite` and `lite_biped`) and ALOHA 2 (MuJoCo Menagerie). They come
+> from URDF, Xacro and MJCF sources. See the [roadmap](docs/roadmap.md).
 
 ## What it does today
 
@@ -20,7 +21,13 @@ mechanical automata.
   explains why they differ.
 - Cites evidence as permalinks to the exact upstream file revision and line. It tells
   extracted, derived and inferred facts apart, and flags numbers it can't verify.
-- Says when it doesn't know (e.g. robots not yet ingested, specs not in the sources).
+- Compares robots of different kinds honestly. For example, ALOHA 2 has 16 articulated but
+  14 independent DoF (coupled gripper fingers) and no legs ("not applicable", not 0).
+  Berkeley Humanoid Lite has 72 DoF, 40 of them in its hands.
+- Reads hardware actuator data from Xacro `ros2_control` blocks, such as RobStride models,
+  CAN ids, and torque and current limits, through its own sandboxed Xacro expander.
+- Says when it doesn't know (robots not in the graph, specs not in the sources), and asks
+  which robot you mean when a question is ambiguous.
 - Explores the IEEE 1872 ontology (CORA, CORAX, RPARTS, POS) and the JAZARI extension,
   with axiom numbers and knowledge-graph instances.
 - Validates its own graph (SHACL, structural and URDF-vs-MJCF checks). This found six
@@ -91,7 +98,7 @@ React UI ──► FastAPI /api/v1 ──► engine: plan (LLM, JSON-schema cons
                                         → fixed read-only tools (named SPARQL, Python arithmetic)
                                         → compose (LLM, cites [E#]) → verify numbers/citations
                      tools ──► rdflib store: IEEE 1872 OWL + JAZARI ontology + robot KGs + BM25 docs
-ingestion: sources.yaml (pinned SHAs) → fetch → URDF/MJCF parsers → KG builder → SHACL validation
+ingestion: sources.yaml (pinned SHAs) → fetch → URDF / sandboxed Xacro / MJCF parsers → KG builder → SHACL validation
 ```
 
 Details: [architecture overview](docs/architecture/overview.md) ·
@@ -131,7 +138,7 @@ npm test
 uv run jazari eval
 ```
 
-The benchmark (`evaluation/benchmark.yaml`, 41 hand-verified questions) scores tool
+The benchmark (`evaluation/benchmark.yaml`, 58 hand-verified questions) scores tool
 selection, required facts and abstention separately.
 
 ## Repository layout
@@ -149,4 +156,4 @@ docs/                  architecture, decisions, sources, ontology, roadmap, depl
 
 Apache-2.0 for JAZARI's own code, ontology and docs. Third-party sources keep their
 licenses and are fetched, not redistributed; see [NOTICE](NOTICE). JAZARI is an
-independent project, not affiliated with Unitree, IEEE, NVIDIA or Dassault Systèmes.
+independent project, not affiliated with Unitree, Berkeley, Trossen Robotics, Google DeepMind, IEEE, NVIDIA or Dassault Systèmes.
