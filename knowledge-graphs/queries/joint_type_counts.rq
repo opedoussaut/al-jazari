@@ -1,0 +1,10 @@
+# Number of joints per normalised joint class in one configuration ($config).
+SELECT ?class (COUNT(DISTINCT ?joint) AS ?count) (SUM(?dof) AS ?dofSum)
+WHERE {
+  ?config jz:hasElement ?joint .
+  ?joint a ?cls ; jz:degreesOfFreedom ?dof .
+  ?cls rdfs:subClassOf jz:Joint .
+  BIND(STRAFTER(STR(?cls), "#") AS ?class)
+}
+GROUP BY ?class
+ORDER BY DESC(?count)

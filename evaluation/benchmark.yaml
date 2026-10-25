@@ -1,0 +1,285 @@
+# JAZARI benchmark v0.1 (M2).
+#
+# Every expected value was checked by hand against the pinned sources:
+#   unitree_ros@15ebe53f4cd77e7d745ae83b9d7ff90e685e8998 robots/g1_description/g1_29dof_rev_1_0.{urdf,xml}
+#   IEEE1872-owl@ffb6613350b28c3a710f8daf2a1e9e953ded7ed8
+# Fields:
+#   tools        - at least one of these tools must be called (tool-selection score); [] = no tool needed
+#   facts        - strings/numbers that must all appear in the answer (automated)
+#   abstain      - true if the correct behaviour is to say the knowledge is not available
+#   forbidden    - strings that must not appear (e.g. values from another robot)
+#   review       - "auto" (fully automated) or "expert" (facts are necessary, not sufficient)
+version: 0.1
+items:
+  # ---------------------------------------------------------------- ontology
+  - id: ont-01
+    category: ontology
+    question: What is a robot according to CORA?
+    tools: [ontology_lookup]
+    facts: [Agent, Device]
+    concepts: [cora:Robot]
+    source: IEEE1872-owl cora.owl (Robot subClassOf Agent, Device)
+    review: expert
+  - id: ont-02
+    category: ontology
+    question: Which ontology defines the property that relates a robot to its actuating parts?
+    tools: [ontology_lookup]
+    facts: [robotActuatingPart]
+    concepts: [rparts:robotActuatingPart]
+    source: IEEE1872-owl rparts.owl
+    review: auto
+  - id: ont-03
+    category: ontology
+    question: What is the domain and range of rparts:robotSensingPart?
+    tools: [ontology_lookup]
+    facts: [Device, Robot]
+    source: IEEE1872-owl rparts.owl (axioms 8.1.2, 8.1.3)
+    review: auto
+  - id: ont-04
+    category: ontology
+    question: What is the parent property of robotActuatingPart in IEEE 1872?
+    tools: [ontology_lookup]
+    facts: [robotPart]
+    source: IEEE1872-owl rparts.owl (axiom 8.2.1)
+    review: auto
+  - id: ont-05
+    category: ontology
+    question: What is the difference between a robot and a robotic system in CORA?
+    tools: [ontology_lookup]
+    facts: [RoboticSystem, ArtificialSystem]
+    source: IEEE1872-owl cora-bare.owl, cora.owl
+    review: expert
+  - id: ont-06
+    category: ontology
+    question: What are the subclasses of RoboticSystem in CORA?
+    tools: [ontology_lookup]
+    facts: [SingleRoboticSystem, CollectiveRoboticSystem]
+    source: IEEE1872-owl cora-bare.owl
+    review: auto
+  - id: ont-07
+    category: ontology
+    question: How does JAZARI model a robot joint, and what is its superclass?
+    tools: [ontology_lookup]
+    facts: [ModelElement]
+    source: ontology/jazari/jazari.ttl
+    review: auto
+  - id: ont-08
+    category: ontology
+    question: Is jz:RobotConfiguration a design or a physical object in the ontology?
+    tools: [ontology_lookup]
+    facts: [Design]
+    source: ontology/jazari/jazari.ttl (RobotConfiguration subClassOf corax:Design)
+    review: auto
+  - id: ont-09
+    category: ontology
+    question: Which IEEE 1872 axiom number gives the range of robotSensingPart?
+    tools: [ontology_lookup]
+    facts: ["8.1.3"]
+    source: IEEE1872-owl rparts.owl annotation ieee18722015AxiomNumber
+    review: auto
+  - id: ont-10
+    category: ontology
+    question: What is a processing device in CORAX, and what is it a subclass of?
+    tools: [ontology_lookup]
+    facts: [ElectricDevice]
+    source: IEEE1872-owl corax.owl
+    review: auto
+
+  # ---------------------------------------------------------- G1 structure
+  - id: g1-01
+    category: architecture
+    question: How many joints are defined in the selected Unitree G1 configuration, and what are their types?
+    tools: [joint_summary]
+    configuration: g1-29dof-rev-1-0
+    facts: [39, 29, 9, revolute, fixed, floating]
+    source: g1_29dof_rev_1_0.urdf + .xml
+    review: auto
+  - id: g1-02
+    category: architecture
+    question: How many joints does the Unitree G1 URDF define, compared with the MJCF?
+    tools: [joint_summary]
+    facts: [38, 30]
+    review: auto
+  - id: g1-03
+    category: architecture
+    question: How many actuated joints are represented in the selected G1 configuration?
+    tools: [joint_summary, actuators]
+    facts: [29]
+    review: auto
+  - id: g1-04
+    category: architecture
+    question: Show the kinematic structure of Unitree G1.
+    tools: [kinematic_structure]
+    facts: [pelvis]
+    review: expert
+  - id: g1-05
+    category: architecture
+    question: What is the root link of the G1 kinematic tree?
+    tools: [kinematic_structure]
+    facts: [pelvis]
+    review: auto
+  - id: g1-06
+    category: architecture
+    question: How many movable joints are in each leg of the Unitree G1?
+    tools: [kinematic_structure]
+    facts: [6]
+    review: auto
+  - id: g1-07
+    category: architecture
+    question: How many waist joints does the G1 29-DoF configuration have?
+    tools: [kinematic_structure, joint_summary]
+    facts: [3]
+    review: auto
+  - id: g1-08
+    category: architecture
+    question: How many joints are in one G1 arm, from shoulder to wrist?
+    tools: [kinematic_structure]
+    facts: [7]
+    review: auto
+  - id: g1-09
+    category: architecture
+    question: Does the Unitree G1 configuration include a floating base, and in which file?
+    tools: [joint_summary]
+    facts: [MJCF]
+    review: auto
+  - id: g1-10
+    category: architecture
+    question: Which fixed joints exist in the G1 URDF?
+    tools: [joint_summary]
+    facts: [d435_joint, mid360_joint, logo_joint]
+    review: auto
+  - id: g1-11
+    category: architecture
+    question: Are there any hand or finger joints in the selected G1 configuration?
+    tools: [joint_summary]
+    facts: []
+    forbidden: [finger joint count]
+    review: expert
+
+  # ---------------------------------------------------------- G1 properties
+  - id: g1-12
+    category: properties
+    question: What are the position limits of the G1 left knee joint?
+    tools: [joint_details]
+    facts: ["-0.087267", "2.8798"]
+    review: auto
+  - id: g1-13
+    category: properties
+    question: What is the effort limit of the G1 left knee joint?
+    tools: [joint_details]
+    facts: [139]
+    review: auto
+  - id: g1-14
+    category: properties
+    question: What is the velocity limit of left_knee_joint?
+    tools: [joint_details]
+    facts: [20]
+    review: auto
+  - id: g1-15
+    category: properties
+    question: What are the limits of the G1 waist_yaw_joint?
+    tools: [joint_details]
+    facts: ["2.618", 88]
+    review: auto
+  - id: g1-16
+    category: properties
+    question: What is the effort limit of left_elbow_joint?
+    tools: [joint_details]
+    facts: [25]
+    review: auto
+  - id: g1-17
+    category: properties
+    question: What is the rotation axis of the G1 left_hip_pitch_joint?
+    tools: [joint_details]
+    facts: ["0 1 0"]
+    review: auto
+  - id: g1-18
+    category: properties
+    question: What is the total of the link masses in the G1 model?
+    tools: [links_and_masses]
+    facts: ["33.34"]
+    review: auto
+  - id: g1-19
+    category: properties
+    question: Which G1 URDF links have no mass specified?
+    tools: [links_and_masses]
+    facts: [d435_link, mid360_link]
+    review: auto
+  - id: g1-20
+    category: properties
+    question: Show all the actuators for which information is available.
+    tools: [actuators]
+    facts: [29, motor]
+    review: auto
+  - id: g1-21
+    category: properties
+    question: Which sensors are declared in the G1 model, and where are they mounted?
+    tools: [sensors]
+    facts: [gyro, accelerometer, pelvis, torso]
+    review: auto
+
+  # ---------------------------------------------------------- provenance
+  - id: prov-01
+    category: provenance
+    question: Which source files and revision support the G1 joint data?
+    tools: [configuration_info, joint_summary]
+    facts: [g1_29dof_rev_1_0, 15ebe53]
+    review: auto
+  - id: prov-02
+    category: provenance
+    question: Which G1 variant did JAZARI select, and why?
+    tools: [configuration_info]
+    facts: [rev]
+    review: expert
+  - id: prov-03
+    category: provenance
+    question: Which values disagree between the G1 URDF and MJCF files?
+    tools: [source_inconsistencies]
+    facts: [ankle, waist, 35, 50]
+    review: auto
+  - id: prov-04
+    category: provenance
+    question: Under which license is the Unitree G1 description published?
+    tools: [configuration_info]
+    facts: [BSD-3-Clause]
+    review: auto
+  - id: prov-05
+    category: provenance
+    question: Which source line defines the G1 left knee joint in the URDF?
+    tools: [joint_details]
+    facts: [161]
+    review: auto
+
+  # ---------------------------------------------------------- abstention
+  - id: abs-01
+    category: abstention
+    question: How many joints does ALOHA 2 have?
+    tools: [joint_summary]
+    abstain: true
+    forbidden: ["39"]
+    review: auto
+  - id: abs-02
+    category: abstention
+    question: Explain Berkeley Humanoid Lite's mechanical architecture.
+    tools: [kinematic_structure, joint_summary]
+    abstain: true
+    forbidden: [pelvis]
+    review: auto
+  - id: abs-03
+    category: abstention
+    question: What is the battery capacity of the Unitree G1?
+    tools: []
+    abstain: true
+    review: auto
+  - id: abs-04
+    category: abstention
+    question: What is the maximum walking speed of the selected G1 configuration?
+    tools: []
+    abstain: true
+    review: auto
+  - id: abs-05
+    category: abstention
+    question: What gear ratio does the G1 MJCF state for the knee motor?
+    tools: [actuators, joint_details]
+    abstain: true
+    review: expert

@@ -1,0 +1,30 @@
+<mujoco model="demo_arm">
+  <compiler angle="degree"/>
+  <default>
+    <joint range="-90 90"/>
+    <default class="slider"><joint type="slide" range="0 0.2"/></default>
+  </default>
+  <worldbody>
+    <body name="base">
+      <inertial pos="0 0 0" mass="2.0" diaginertia="1 1 1"/>
+      <freejoint name="root"/>
+      <site name="imu_site"/>
+      <body name="l1">
+        <inertial pos="0 0 0" mass="1.0" diaginertia="1 1 1"/>
+        <joint name="shoulder_joint" axis="0 0 1" actuatorfrcrange="-50 50"/>
+        <geom type="box" size="1 1 1"/>
+        <body name="l2">
+          <inertial pos="0 0 0" mass="0.5" diaginertia="1 1 1"/>
+          <joint name="slide_joint" class="slider" axis="1 0 0"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <motor name="shoulder_motor" joint="shoulder_joint" gear="10"/>
+    <position name="slide_servo" joint="slide_joint" ctrlrange="0 0.2"/>
+  </actuator>
+  <sensor>
+    <gyro name="base_gyro" site="imu_site"/>
+  </sensor>
+</mujoco>

@@ -1,0 +1,17 @@
+# Engineering quantities (limits) of the joints of one configuration ($config),
+# one row per quantity per source file.
+SELECT ?name ?property ?value ?unit ?format ?line ?attribute ?evidence ?fileUrl
+WHERE {
+  ?config jz:hasElement ?joint .
+  ?joint a ?jc ; jz:nativeName ?name ; ?p ?q .
+  ?jc rdfs:subClassOf* jz:Joint .
+  VALUES ?p { jz:lowerLimit jz:upperLimit jz:effortLimit jz:velocityLimit }
+  BIND(STRAFTER(STR(?p), "#") AS ?property)
+  ?q qudt:numericValue ?value ; qudt:unit ?u ; jz:describedIn ?f ; jz:evidenceType ?e .
+  BIND(STRAFTER(STR(?u), "unit/") AS ?unit)
+  BIND(STRAFTER(STR(?e), "#") AS ?evidence)
+  ?f jz:sourceFormat ?format ; jz:url ?fileUrl .
+  OPTIONAL { ?q jz:sourceLine ?line }
+  OPTIONAL { ?q jz:sourceAttribute ?attribute }
+}
+ORDER BY ?name ?property ?format

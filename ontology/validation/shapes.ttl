@@ -1,0 +1,84 @@
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix jz:     <https://w3id.org/jazari/ontology#> .
+@prefix jzs:    <https://w3id.org/jazari/shapes#> .
+@prefix qudt:   <http://qudt.org/schema/qudt/> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL shapes for the JAZARI application data model.
+
+jzs:RobotModelShape a sh:NodeShape ;
+    sh:targetClass jz:RobotModel ;
+    sh:property [ sh:path rdfs:label ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path jz:category ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path jz:hasConfiguration ; sh:minCount 1 ; sh:class jz:RobotConfiguration ] .
+
+jzs:ConfigurationShape a sh:NodeShape ;
+    sh:targetClass jz:RobotConfiguration ;
+    sh:property [ sh:path jz:configurationOf ; sh:minCount 1 ; sh:maxCount 1 ; sh:class jz:RobotModel ] ;
+    sh:property [ sh:path jz:nativeName ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path jz:describedIn ; sh:minCount 1 ; sh:class jz:DescriptionFile ] ;
+    sh:property [ sh:path jz:selectionRationale ; sh:maxCount 1 ] .
+
+jzs:ModelElementShape a sh:NodeShape ;
+    sh:targetClass jz:Link, jz:Joint, jz:Actuator, jz:Sensor ;
+    sh:property [ sh:path jz:nativeName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path jz:describedIn ; sh:minCount 1 ; sh:class jz:DescriptionFile ;
+                  sh:message "Every model element must be attributable to a source file." ] ;
+    sh:property [ sh:path [ sh:inversePath jz:hasElement ] ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:class jz:RobotConfiguration ] ;
+    sh:property [ sh:path jz:hasMention ; sh:minCount 1 ; sh:node jzs:MentionShape ] .
+
+jzs:MentionShape a sh:NodeShape ;
+    sh:property [ sh:path jz:describedIn ; sh:minCount 1 ; sh:maxCount 1 ; sh:class jz:DescriptionFile ] ;
+    sh:property [ sh:path jz:sourceLine ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ] ;
+    sh:property [ sh:path jz:sourceType ; sh:maxCount 1 ] ;
+    sh:property [ sh:path jz:sourceFormat ; sh:minCount 1 ; sh:in ( "urdf" "mjcf" ) ] .
+
+jzs:JointShape a sh:NodeShape ;
+    sh:targetClass jz:Joint ;
+    sh:property [ sh:path jz:childLink ; sh:minCount 1 ; sh:maxCount 1 ; sh:class jz:Link ] ;
+    sh:property [ sh:path jz:parentLink ; sh:maxCount 1 ; sh:class jz:Link ] ;
+    sh:property [ sh:path jz:degreesOfFreedom ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ;
+                  sh:minInclusive 0 ; sh:maxInclusive 6 ] ;
+    # One value per source file is allowed (URDF and MJCF may both state a limit);
+    # "at most one per file" is checked in jazari/validation.py.
+    sh:property [ sh:path jz:lowerLimit ; sh:node jzs:QuantityShape ] ;
+    sh:property [ sh:path jz:upperLimit ; sh:node jzs:QuantityShape ] ;
+    sh:property [ sh:path jz:effortLimit ; sh:node jzs:QuantityShape ] ;
+    sh:property [ sh:path jz:velocityLimit ; sh:node jzs:QuantityShape ] .
+
+jzs:ActuatorShape a sh:NodeShape ;
+    sh:targetClass jz:Actuator ;
+    sh:property [ sh:path jz:drivesJoint ; sh:maxCount 1 ; sh:class jz:Joint ] .
+
+jzs:SensorShape a sh:NodeShape ;
+    sh:targetClass jz:Sensor ;
+    sh:property [ sh:path jz:mountedOn ; sh:maxCount 1 ; sh:class jz:Link ] .
+
+jzs:QuantityShape a sh:NodeShape ;
+    sh:targetClass qudt:QuantityValue ;
+    sh:property [ sh:path qudt:numericValue ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:double ] ;
+    sh:property [ sh:path qudt:unit ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:in ( <http://qudt.org/vocab/unit/RAD> <http://qudt.org/vocab/unit/M>
+                          <http://qudt.org/vocab/unit/KiloGM> <http://qudt.org/vocab/unit/N-M>
+                          <http://qudt.org/vocab/unit/N> <http://qudt.org/vocab/unit/RAD-PER-SEC>
+                          <http://qudt.org/vocab/unit/M-PER-SEC> ) ] ;
+    sh:property [ sh:path jz:describedIn ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path jz:evidenceType ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:in ( jz:Extracted jz:Derived jz:Inferred jz:Curated ) ] .
+
+jzs:MassShape a sh:NodeShape ;
+    sh:targetObjectsOf jz:mass ;
+    sh:property [ sh:path qudt:numericValue ; sh:minExclusive 0.0 ;
+                  sh:message "Masses must be strictly positive." ] ;
+    sh:property [ sh:path qudt:unit ; sh:hasValue <http://qudt.org/vocab/unit/KiloGM> ] .
+
+jzs:DescriptionFileShape a sh:NodeShape ;
+    sh:targetClass jz:DescriptionFile, jz:TechnicalDocument ;
+    sh:property [ sh:path jz:sourcePath ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path jz:revision ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:pattern "^[0-9a-f]{40}$" ; sh:message "Sources must be pinned to a full commit SHA." ] ;
+    sh:property [ sh:path jz:sha256 ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path jz:fromRepository ; sh:minCount 1 ; sh:maxCount 1 ] .

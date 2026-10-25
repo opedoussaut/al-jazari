@@ -1,0 +1,11 @@
+# Actuators of one configuration ($config) and the joints they drive.
+SELECT ?name ?type ?joint ?gear ?format ?line ?fileUrl
+WHERE {
+  ?config jz:hasElement ?a .
+  ?a a jz:Actuator ; jz:nativeName ?name ; jz:hasMention ?m .
+  ?m jz:sourceType ?type ; jz:sourceFormat ?format ; jz:sourceLine ?line ; jz:describedIn ?f .
+  ?f jz:url ?fileUrl .
+  OPTIONAL { ?a jz:drivesJoint ?j . ?j jz:nativeName ?joint }
+  OPTIONAL { ?a jz:mjcfGear ?gear }
+}
+ORDER BY ?name

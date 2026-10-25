@@ -1,0 +1,12 @@
+# Links of one configuration ($config) with mass per source file where stated.
+SELECT ?name ?format ?line ?mass ?massLine
+WHERE {
+  ?config jz:hasElement ?link .
+  ?link a jz:Link ; jz:nativeName ?name ; jz:hasMention ?m .
+  ?m jz:sourceFormat ?format ; jz:sourceLine ?line ; jz:describedIn ?f .
+  OPTIONAL {
+    ?link jz:mass ?q . ?q jz:describedIn ?f ; qudt:numericValue ?mass .
+    OPTIONAL { ?q jz:sourceLine ?massLine }
+  }
+}
+ORDER BY ?name ?format

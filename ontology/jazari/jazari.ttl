@@ -1,0 +1,203 @@
+@prefix jz:     <https://w3id.org/jazari/ontology#> .
+@prefix cora:   <http://purl.org/ieee1872-owl/cora-bare#> .
+@prefix corax:  <http://purl.org/ieee1872-owl/corax#> .
+@prefix sumo:   <http://purl.org/ieee1872-owl/sumo-cora#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix qudt:   <http://qudt.org/schema/qudt/> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# ---------------------------------------------------------------------------
+# JAZARI core ontology.
+#
+# Design rule: reuse IEEE 1872-2015 (CORA/CORAX/RPARTS via IEEE1872-owl) for the
+# top-level notions and only add what those ontologies do not cover (kinematic
+# links and joints, description files, robot configurations, evidence types).
+#
+# Everything that a URDF/MJCF file describes is a *design*, not a physical robot.
+# Configurations are therefore corax:Design and their elements are
+# corax:DesignObject. Physical robots (cora:Robot individuals) are modelled with
+# jz:RobotInstance and are out of scope for the first milestones.
+#
+# All skos:definition texts are written by the JAZARI project in its own words.
+# They are NOT quotations of IEEE 1872-2015.
+# ---------------------------------------------------------------------------
+
+<https://w3id.org/jazari/ontology>
+    a owl:Ontology ;
+    rdfs:label "JAZARI core ontology"@en ;
+    owl:versionIRI <https://w3id.org/jazari/ontology/0.1.0> ;
+    owl:versionInfo "0.1.0" ;
+    dcterms:license <https://www.apache.org/licenses/LICENSE-2.0> ;
+    rdfs:comment "Robot models, configurations, kinematic elements and evidence, aligned with IEEE 1872-2015 (CORA), SOSA, QUDT and PROV-O."@en ;
+    rdfs:seeAlso <https://github.com/opedoussaut/al-jazari> .
+
+# ----------------------------------------------------------------- products --
+
+jz:RobotModel a owl:Class ;
+    rdfs:subClassOf corax:Design ;
+    rdfs:label "Robot model"@en ;
+    skos:definition "A commercial or research robot product line, such as 'Unitree G1', independent of any particular variant or physical unit."@en .
+
+jz:RobotConfiguration a owl:Class ;
+    rdfs:subClassOf corax:Design ;
+    rdfs:label "Robot configuration"@en ;
+    skos:definition "One specific variant of a robot model with a fixed set of links, joints, actuators and sensors, as captured by a robot description file (for example the G1 29-DoF revision 1.0)."@en .
+
+jz:RobotInstance a owl:Class ;
+    rdfs:subClassOf cora:Robot ;
+    rdfs:label "Robot instance"@en ;
+    skos:definition "One physical robot unit, built according to a robot configuration."@en .
+
+# ------------------------------------------------------------ design elements --
+
+jz:ModelElement a owl:Class ;
+    rdfs:subClassOf corax:DesignObject ;
+    rdfs:label "Model element"@en ;
+    skos:definition "A component of a robot configuration as represented in a robot description: a link, joint, actuator or sensor."@en .
+
+jz:Link a owl:Class ;
+    rdfs:subClassOf jz:ModelElement ;
+    rdfs:label "Link"@en ;
+    skos:definition "A rigid body of a robot's kinematic structure. Corresponds to <link> in URDF and <body> in MJCF."@en .
+
+jz:Joint a owl:Class ;
+    rdfs:subClassOf jz:ModelElement ;
+    rdfs:label "Joint"@en ;
+    skos:definition "A kinematic connection between a parent link and a child link that constrains their relative motion."@en .
+
+jz:RevoluteJoint a owl:Class ; rdfs:subClassOf jz:Joint ; rdfs:label "Revolute joint"@en ;
+    skos:definition "A one-DoF rotational joint with position limits (URDF revolute; MJCF hinge with a range)."@en .
+jz:ContinuousJoint a owl:Class ; rdfs:subClassOf jz:Joint ; rdfs:label "Continuous joint"@en ;
+    skos:definition "A one-DoF rotational joint without position limits (URDF continuous; MJCF hinge without range)."@en .
+jz:PrismaticJoint a owl:Class ; rdfs:subClassOf jz:Joint ; rdfs:label "Prismatic joint"@en ;
+    skos:definition "A one-DoF translational joint (URDF prismatic; MJCF slide)."@en .
+jz:FixedJoint a owl:Class ; rdfs:subClassOf jz:Joint ; rdfs:label "Fixed joint"@en ;
+    skos:definition "A rigid connection with zero DoF (URDF fixed). MJCF expresses this by nesting a body without a joint or by merging geoms."@en .
+jz:FloatingJoint a owl:Class ; rdfs:subClassOf jz:Joint ; rdfs:label "Floating joint"@en ;
+    skos:definition "An unconstrained six-DoF connection, typically between the world and a mobile robot's base (URDF floating; MJCF free)."@en .
+jz:BallJoint a owl:Class ; rdfs:subClassOf jz:Joint ; rdfs:label "Ball joint"@en ;
+    skos:definition "A three-DoF rotational joint (MJCF ball)."@en .
+jz:PlanarJoint a owl:Class ; rdfs:subClassOf jz:Joint ; rdfs:label "Planar joint"@en ;
+    skos:definition "A three-DoF joint allowing motion in a plane (URDF planar)."@en .
+
+jz:Actuator a owl:Class ;
+    rdfs:subClassOf jz:ModelElement ;
+    rdfs:label "Actuator"@en ;
+    skos:definition "A model element that generates force or torque on a joint, such as an MJCF <motor>. In a physical robot it is realised by a device that is a robot actuating part (RPARTS)."@en .
+
+jz:Sensor a owl:Class ;
+    rdfs:subClassOf jz:ModelElement ;
+    rdfs:label "Sensor"@en ;
+    skos:definition "A model element that produces measurements, such as an MJCF <gyro> or <accelerometer>. In a physical robot it is realised by a device that is a robot sensing part (RPARTS)."@en .
+
+# ------------------------------------------------------------------ evidence --
+
+jz:DescriptionFile a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Robot description file"@en ;
+    skos:definition "A machine-readable robot description (URDF, Xacro, MJCF) at a pinned source revision."@en .
+
+jz:TechnicalDocument a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Technical document"@en ;
+    skos:definition "A human-readable technical document, such as a README or datasheet, at a pinned revision."@en .
+
+jz:SourceMention a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Source mention"@en ;
+    skos:definition "The place where one model element is written in one description file: file, line and element type as written there. A joint present in both URDF and MJCF has two mentions."@en .
+
+jz:SourceRepository a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Source repository"@en .
+
+jz:EvidenceType a owl:Class ;
+    rdfs:label "Evidence type"@en ;
+    skos:definition "How a fact entered the knowledge graph."@en ;
+    owl:oneOf ( jz:Extracted jz:Derived jz:Inferred jz:Curated ) .
+
+jz:Extracted a jz:EvidenceType ; rdfs:label "extracted"@en ;
+    skos:definition "Read directly from a source file attribute or element, without computation."@en .
+jz:Derived a jz:EvidenceType ; rdfs:label "derived"@en ;
+    skos:definition "Computed deterministically from extracted facts; the method is recorded in jz:derivationMethod."@en .
+jz:Inferred a jz:EvidenceType ; rdfs:label "inferred"@en ;
+    skos:definition "Entailed by ontology axioms (for example class membership through rdfs:subClassOf)."@en .
+jz:Curated a jz:EvidenceType ; rdfs:label "curated"@en ;
+    skos:definition "Entered by a human editor from a cited document."@en .
+
+# -------------------------------------------------------- object properties --
+
+jz:hasConfiguration a owl:ObjectProperty ;
+    rdfs:domain jz:RobotModel ; rdfs:range jz:RobotConfiguration ;
+    owl:inverseOf jz:configurationOf ; rdfs:label "has configuration"@en .
+jz:configurationOf a owl:ObjectProperty ; rdfs:label "configuration of"@en .
+
+jz:hasElement a owl:ObjectProperty ;
+    rdfs:subPropertyOf corax:dependsOn ;
+    rdfs:domain jz:RobotConfiguration ; rdfs:range jz:ModelElement ;
+    rdfs:label "has element"@en .
+
+jz:parentLink a owl:ObjectProperty, owl:FunctionalProperty ;
+    rdfs:domain jz:Joint ; rdfs:range jz:Link ; rdfs:label "parent link"@en .
+jz:childLink a owl:ObjectProperty, owl:FunctionalProperty ;
+    rdfs:domain jz:Joint ; rdfs:range jz:Link ; rdfs:label "child link"@en .
+jz:rootLink a owl:ObjectProperty ;
+    rdfs:domain jz:RobotConfiguration ; rdfs:range jz:Link ; rdfs:label "root link"@en .
+
+jz:drivesJoint a owl:ObjectProperty ;
+    rdfs:domain jz:Actuator ; rdfs:range jz:Joint ; rdfs:label "drives joint"@en .
+jz:mountedOn a owl:ObjectProperty ;
+    rdfs:domain jz:Sensor ; rdfs:range jz:Link ; rdfs:label "mounted on"@en .
+
+jz:describedIn a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasDerivedFrom ;
+    rdfs:range prov:Entity ; rdfs:label "described in"@en .
+jz:hasMention a owl:ObjectProperty ;
+    rdfs:domain jz:ModelElement ; rdfs:range jz:SourceMention ; rdfs:label "has mention"@en .
+jz:fromRepository a owl:ObjectProperty ;
+    rdfs:domain prov:Entity ; rdfs:range jz:SourceRepository ; rdfs:label "from repository"@en .
+jz:evidenceType a owl:ObjectProperty ;
+    rdfs:range jz:EvidenceType ; rdfs:label "evidence type"@en .
+
+# Engineering quantities are qudt:QuantityValue nodes so that each carries its
+# unit, its source file, source line and evidence type.
+jz:mass a owl:ObjectProperty ; rdfs:range qudt:QuantityValue ; rdfs:label "mass"@en .
+jz:lowerLimit a owl:ObjectProperty ; rdfs:domain jz:Joint ; rdfs:range qudt:QuantityValue ; rdfs:label "lower position limit"@en .
+jz:upperLimit a owl:ObjectProperty ; rdfs:domain jz:Joint ; rdfs:range qudt:QuantityValue ; rdfs:label "upper position limit"@en .
+jz:effortLimit a owl:ObjectProperty ; rdfs:domain jz:Joint ; rdfs:range qudt:QuantityValue ;
+    rdfs:label "effort limit"@en ;
+    rdfs:comment "Maximum force or torque. From URDF limit/@effort or MJCF joint/@actuatorfrcrange; jz:sourceAttribute tells which."@en .
+jz:velocityLimit a owl:ObjectProperty ; rdfs:domain jz:Joint ; rdfs:range qudt:QuantityValue ; rdfs:label "velocity limit"@en .
+
+# -------------------------------------------------------- datatype properties --
+
+jz:nativeName a owl:DatatypeProperty ; rdfs:range xsd:string ;
+    rdfs:label "native name"@en ; rdfs:comment "Identifier exactly as written in the source file."@en .
+jz:sourceFormat a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "source format"@en .
+jz:sourceType a owl:DatatypeProperty ; rdfs:range xsd:string ;
+    rdfs:label "source type"@en ; rdfs:comment "Element type as written in the source, e.g. URDF 'revolute' or MJCF 'hinge'."@en .
+jz:sourceLine a owl:DatatypeProperty ; rdfs:range xsd:integer ; rdfs:label "source line"@en .
+jz:sourceAttribute a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "source attribute"@en .
+jz:sourcePath a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "source path"@en .
+jz:revision a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "revision"@en .
+jz:sha256 a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "SHA-256"@en .
+jz:license a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "license"@en .
+jz:url a owl:DatatypeProperty ; rdfs:range xsd:anyURI ; rdfs:label "URL"@en .
+jz:axis a owl:DatatypeProperty ; rdfs:domain jz:Joint ; rdfs:range xsd:string ; rdfs:label "axis"@en .
+jz:degreesOfFreedom a owl:DatatypeProperty ; rdfs:domain jz:Joint ; rdfs:range xsd:integer ;
+    rdfs:label "degrees of freedom"@en ;
+    rdfs:comment "Derived from the normalised joint class by a fixed table (revolute, continuous, prismatic = 1; ball, planar = 3; floating = 6; fixed = 0). Says nothing about whether the joint is actuated."@en .
+jz:mjcfGear a owl:DatatypeProperty ; rdfs:domain jz:Actuator ; rdfs:range xsd:double ;
+    rdfs:label "MJCF gear"@en ; rdfs:comment "MJCF actuator transmission scale (actuator/@gear). Not necessarily a physical gearbox ratio."@en .
+jz:modeMachine a owl:DatatypeProperty ; rdfs:domain jz:RobotConfiguration ; rdfs:range xsd:integer ;
+    rdfs:label "mode_machine"@en ; rdfs:comment "Unitree machine-type identifier of the configuration."@en .
+jz:derivationMethod a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "derivation method"@en .
+jz:category a owl:DatatypeProperty ; rdfs:domain jz:RobotModel ; rdfs:range xsd:string ; rdfs:label "category"@en .
+jz:manufacturer a owl:DatatypeProperty ; rdfs:domain jz:RobotModel ; rdfs:range xsd:string ; rdfs:label "manufacturer"@en .
+jz:selectionRationale a owl:DatatypeProperty ; rdfs:domain jz:RobotConfiguration ; rdfs:range xsd:string ; rdfs:label "selection rationale"@en .
+jz:isBaseline a owl:DatatypeProperty ; rdfs:domain jz:RobotConfiguration ; rdfs:range xsd:boolean ; rdfs:label "is baseline"@en .
