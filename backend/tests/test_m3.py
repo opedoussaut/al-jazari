@@ -102,3 +102,15 @@ def test_joint_name_identifies_robot_when_unique(tb):
     assert r.ok and r.configuration == "g1-29dof-rev-1-0"
     r = tb.run("joint_details", {"joint": "left_hip_pitch"}, None)  # in both Berkeley configurations
     assert not r.ok and "ask the user which one" in r.error
+
+
+def test_planner_cannot_pick_an_unnamed_variant():
+    from jazari.intelligence.schemas import ToolCall
+
+    engine = get_engine()
+    calls = [ToolCall(name="joint_summary", arguments={"configuration": "lite-biped"})]
+    notes = engine._enforce_variant_choice(calls, "How many DoF does the Berkeley Humanoid Lite have without hands?")
+    assert calls[0].arguments["configuration"] == "lite" and notes
+    calls = [ToolCall(name="actuators", arguments={"configuration": "lite-biped"})]
+    assert engine._enforce_variant_choice(calls, "Which motors drive the Berkeley lite biped?") == []
+    assert calls[0].arguments["configuration"] == "lite-biped"

@@ -30,7 +30,7 @@ Status as of 2026-10-26.
       14 independent DoF), cameras
 - [x] Variant-aware robot resolution, multi-robot comparisons, no silent default robot
 - [x] Comparison API/UI with derived body regions and "not applicable" vs "not stated"
-- [x] Benchmark v0.2 (58 questions) with Berkeley, ALOHA and comparison items
+- [x] Benchmark v0.2 (58 questions) with Berkeley, ALOHA and comparison items: qwen3-coder:30b 0.879 tool selection, 0.845 answers (0.828 after review)
 - [ ] Curated document facts (`jz:Curated`) for motor tables (G1 `motor_info.md`,
       RobStride spec tables) with explicit variant applicability: moved to M4
 

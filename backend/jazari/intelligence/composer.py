@@ -68,15 +68,17 @@ def compose_template(question: str, results: list[ToolResult]) -> str:
 _BRACKET = re.compile(r"\s?\[([^\[\]]{1,80})\](?!\()")
 
 
-def sanitize_citations(answer: str, evidence_ids: set[str]) -> tuple[str, list[str]]:
-    """Remove citations that do not point to real evidence (e.g. invented standard clauses)."""
+def sanitize_citations(answer: str, evidence_ids: set[str],
+                       tool_names: frozenset[str] = frozenset()) -> tuple[str, list[str]]:
+    """Remove citations that do not point to real evidence (e.g. invented standard clauses,
+    or a tool name such as [joint_summary] used as if it were a source)."""
     removed: list[str] = []
 
     def repl(m: re.Match) -> str:
         inner = m.group(1).strip()
         if inner in evidence_ids:
             return m.group(0)
-        if re.fullmatch(r"E\d+", inner) or re.search(r"\d", inner):
+        if re.fullmatch(r"E\d+", inner) or re.search(r"\d", inner) or inner in tool_names:
             removed.append(f"[{inner}]")
             return ""
         return m.group(0)  # e.g. a Markdown checkbox or bracketed word without digits

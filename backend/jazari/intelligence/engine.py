@@ -51,6 +51,24 @@ class Engine:
         self.sessions.move_to_end(session_id)
         return self.sessions[session_id]
 
+    def _enforce_variant_choice(self, calls: list, question: str) -> list[str]:
+        """The LLM may pick a non-baseline variant only if the user's words select it.
+
+        Found in the benchmark: for "Berkeley Humanoid Lite without its hands" the planner
+        chose the legs-only variant on its own. A robot name means the baseline (ADR-015).
+        """
+        wanted = {c["robot_id"]: c for c in self.toolbox.mentioned_configurations(question)}
+        notes = []
+        for call in calls:
+            requested = call.arguments.get("configuration")
+            cfg = self.toolbox.resolve_configuration(requested) if isinstance(requested, str) else None
+            target = wanted.get(cfg["robot_id"]) if cfg else None
+            if cfg and target and not cfg["baseline"] and target["id"] != cfg["id"]:
+                call.arguments["configuration"] = target["id"]
+                notes.append(f"planner chose variant {cfg['id']} that the question does not name; "
+                             f"used {target['id']} instead")
+        return notes
+
     def ask(self, question: str, session_id: str | None = None, configuration: str | None = None,
             use_llm: bool = True) -> ChatResponse:
         t0 = time.perf_counter()
@@ -67,6 +85,7 @@ class Engine:
             try:
                 calls = llm_plan(self.llm, self.toolbox, question, sess.configuration, sess.history)
                 planner = "llm"
+                warnings += self._enforce_variant_choice(calls, question)
             except LLMUnavailable as e:
                 if not self.settings.allow_llm_fallback:
                     raise
@@ -110,7 +129,7 @@ class Engine:
         if answer is None:
             answer = compose_template(question, results)
 
-        answer, removed = sanitize_citations(answer, {e.id for e in evidence})
+        answer, removed = sanitize_citations(answer, {e.id for e in evidence}, frozenset(self.toolbox.specs))
         verification = verify_numbers(answer, question, results)
         if removed:
             verification.removed_citations = removed

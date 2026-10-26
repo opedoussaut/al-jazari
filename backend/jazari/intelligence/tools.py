@@ -81,17 +81,20 @@ class Toolbox:
                      self.configuration_info),
             ToolSpec("joint_summary",
                      "Count and classify all joints of a configuration (revolute, fixed, floating ...), "
-                     "degrees of freedom, actuated joints, and how URDF and MJCF differ.",
+                     "degrees of freedom (total, without hands, independent after couplings), floating base, "
+                     "joints per body region (legs, arms, hands, waist, neck), actuated joints, and how the "
+                     "source formats differ.",
                      {"configuration": "configuration id or robot name"}, self.joint_summary),
             ToolSpec("kinematic_structure",
-                     "Kinematic tree of a configuration: root link, serial chains (legs, arms, waist) "
-                     "and parent/child link connectivity.",
+                     "Kinematic tree of a configuration: root link(s) and how they attach to the world "
+                     "(floating or welded), serial chains (legs, arms, waist) and parent/child connectivity.",
                      {"configuration": "configuration id or robot name"}, self.kinematic_structure),
             ToolSpec("joint_details",
                      "Limits (position, effort, velocity), axis, parent/child and source lines of one joint.",
                      {"configuration": "configuration id or robot name",
                       "joint": "joint name, e.g. left_knee_joint"}, self.joint_details),
-            ToolSpec("actuators", "Actuators of a configuration and the joints they drive.",
+            ToolSpec("actuators", "Actuators of a configuration: the joints they drive, actuator/motor models, "
+                     "bus addresses, torque and current limits, gains, and transmissions such as linkages.",
                      {"configuration": "configuration id or robot name"}, self.actuators),
             ToolSpec("sensors", "Sensors of a configuration and the links they are mounted on.",
                      {"configuration": "configuration id or robot name"}, self.sensors),
@@ -143,7 +146,7 @@ class Toolbox:
             if t in (c["id"], c["native_name"].lower(), c["uri"].lower()):
                 return c
         def words(s: str) -> set[str]:
-            return set(re.sub(r"[-_/(),.]", " ", s.lower()).split())
+            return set(re.findall(r"[a-z0-9]+", s.lower()))
 
         tokens = words(t) - _STOPWORDS
         # a robot matches on its distinctive name words; a variant wins if its own
@@ -174,7 +177,7 @@ class Toolbox:
         for robot_id in dict.fromkeys(c["robot_id"] for c in self.configurations()):
             configs = [c for c in self.configurations() if c["robot_id"] == robot_id]
             robot = next((c for c in configs if c["baseline"]), configs[0])
-            names = set(re.sub(r"[-_/(),.]", " ", f"{robot['robot']} {robot_id}".lower()).split()) - _STOPWORDS
+            names = set(re.findall(r"[a-z0-9]+", f"{robot['robot']} {robot_id}".lower())) - _STOPWORDS
             positions = [m.start() for w in names for m in re.finditer(rf"\b{re.escape(w)}\b", lowered)]
             if positions:
                 # resolve within this robot only, so variant words pick the variant

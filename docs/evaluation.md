@@ -1,7 +1,8 @@
 # Evaluation
 
-Benchmark: [`evaluation/benchmark.yaml`](../evaluation/benchmark.yaml), v0.1, 41 questions.
-Every expected value was checked by hand against the pinned sources. Run it with:
+Benchmark: [`evaluation/benchmark.yaml`](../evaluation/benchmark.yaml), v0.2.1, 58
+questions over the G1, Berkeley Humanoid Lite, ALOHA 2 and the IEEE 1872 ontologies. Every
+expected value was checked by hand against the pinned sources. Run it with:
 
 ```bash
 uv run jazari eval
@@ -17,69 +18,70 @@ Each item is scored on two separate axes:
 - **Tool selection:** at least one expected tool was called.
 - **Answer:** all required facts are present and no forbidden fact is. For abstention
   items, the answer must say the knowledge is unavailable and must not contain the
-  forbidden values (e.g. G1 numbers for ALOHA 2).
+  forbidden values.
 
-Items marked `review: expert` (6 of 41) also need human review. Their automated facts are
-necessary but not sufficient. Retrieval quality is visible per item in the trace.
-Unsupported numbers and removed citations are counted separately. Response latency is
-recorded per item.
+Items marked `review: expert` also need human review. Their automated facts are necessary
+but not sufficient. Unsupported numbers, removed citations and latency are recorded per
+item.
 
-## Results — 2026-10-25, RTX A1000 6 GB laptop, Ollama 0.40.9
+## Results — M3, benchmark v0.2 (58 items), 2026-10-26, RTX A1000 6 GB, Ollama 0.40.9
 
-| Mode | Tool selection | Answer | Answers with unsupported numbers | Answers with removed citations | Median latency |
+| Mode | Tool selection | Answer (automated) | Answer (after review) | Median latency | p90 latency |
 |---|---|---|---|---|---|
-| Rules + template (no LLM) | 0.780 | 0.561 | 0 | 6 | 0.03 s |
-| `qwen3-coder:30b`, run 1 | 0.927 | 0.854 | 3 | 5 | 13.3 s |
-| `qwen3-coder:30b`, run 2 (after fixes below) | **0.927** | **0.854** | 1 | 6 | 13.0 s |
+| Rules + template (no LLM) | 0.810 | 0.534 | — | < 0.5 s | < 1 s |
+| `qwen3-coder:30b` | **0.879** | **0.845** | **0.828** | 16.7 s | 39.6 s |
 
-Run 2 by category:
+"After review" reflects one false pass that review found: g1-09. The model answered that
+the G1 has *no* floating base, which is wrong (the MJCF declares one). It passed
+automatically only because "MJCF" appeared in its answer. The item now also requires
+`floating_base_joint` and forbids the false claim (v0.2.1).
+
+One item (bhl-05) took 7.7 hours because the host was suspended overnight during the run.
+It is excluded from the latency figures; the slowest other item took 246 s.
+
+By category (LLM, automated):
 
 | Category | n | Tool selection | Answer |
 |---|---|---|---|
+| Architecture | 19 | 0.84 | 0.95 |
+| Properties | 14 | 0.86 | 0.86 |
 | Ontology | 10 | 1.00 | 0.70 |
-| Architecture | 11 | 0.91 | 0.91 |
-| Properties | 10 | 1.00 | 0.90 |
-| Provenance | 5 | 1.00 | 1.00 |
-| Abstention | 5 | 0.60 | 0.80 |
+| Provenance | 6 | 1.00 | 1.00 |
+| Abstention | 6 | 0.83 | 0.83 |
+| Comparison | 3 | 0.67 | 0.33 |
 
-### Changes between run 1 and run 2
+### Failures and what was done
 
-Run 1 failures led to three fixes:
+| Item | Cause | Action |
+|---|---|---|
+| bhl-03 | The planner chose the `lite_biped` variant for "Berkeley Humanoid Lite without its hands" | **Fixed:** the engine overrides a variant the question does not name (ADR-015). Re-asked: correct (32) |
+| g1-09 | Asserted a negative ("no floating base") that no tool result supported | **Fixed:** composer rule against unsupported absence claims; tool descriptions mention the floating base. Re-asked: correct |
+| bhl-07 | The planner invented joint names instead of calling `actuators` | **Fixed:** the actuators tool description now covers transmissions and linkages. Re-asked: correct |
+| ont-02, ont-05, ont-09 | Ontology search ranks `robotPart` above `robotActuatingPart`; answers omit named classes or the axiom number | Open (M4: ontology retrieval) |
+| g1-06, g1-08, g1-19, abs-05 | Correct or partly correct answers through other tools than expected; g1-19 missed link names | Open |
+| cmp-01, cmp-03 | Comparisons: the arm joint count (7) not stated explicitly; the gripper/hand comparison used the wrong tools | Open: a dedicated comparison tool is planned |
 
-1. Per-region joint counts were added to `joint_summary` (derived from native-name patterns,
-   with the method recorded). In run 1 the model answered "1 waist joint" (truth: 3)
-   because no tool gave that number.
-2. The number verifier matches the corpus loosely (`@L161` now supports 161). Run 1 had
-   false "unsupported" flags.
-3. Placeholder arguments such as `"None"` are treated as omitted.
+A full re-run after these fixes is pending, so the table above shows the measured run
+**before** the fixes.
 
-Gains and losses balanced out: g1-07 and prov-05 were fixed, g1-08 regressed (the model
-counted the waist chain as part of the arm).
+Also found and fixed during M3 testing, though outside the benchmark: concurrent API
+requests corrupted rdflib's SPARQL parser for the whole process (see PR #2).
 
-After run 2, one more fix: with a single configuration in the graph and no robot named
-in a fresh session, tools use that configuration. With several, they ask which one.
-g1-20 and g1-07 were re-scored individually and pass. A full rerun is pending, so the
-table above does **not** include this fix.
+## M2 history (benchmark v0.1, 41 items, G1 only)
 
-### Remaining failures (run 2), by cause
+| Mode | Tool selection | Answer |
+|---|---|---|
+| Rules + template | 0.780 | 0.561 |
+| `qwen3-coder:30b` | 0.927 | 0.854 |
 
-| Item | Cause |
-|---|---|
-| ont-02 | Ontology search ranks `cora:robotPart` above `rparts:robotActuatingPart` for "actuating parts" |
-| ont-05 | The answer explains the concepts but does not name `cora:RoboticSystem` |
-| ont-09 | The axiom number 8.1.3 was in the facts, but the model said there was none: composer error |
-| g1-08 | Arm chain counted with the waist (10 instead of 7), even though region counts were available |
-| g1-09, abs-02 | Correct answers, but via different tools than expected (scoring is strict) |
-| g1-20 | Fixed after run 2 (see above) |
-| abs-05 | **Misattribution:** said the MJCF states a knee gear ratio of 22.5. That value is a README table entry, and the MJCF states no gear |
+The M2 and M3 numbers are not directly comparable: v0.2 adds harder multi-robot,
+comparison and variant questions.
 
-Known blind spot: the number verifier cannot catch a wrong small count (1 or 2), because
-those numbers appear everywhere in the results.
+## Known limits
 
-## Not yet measured
-
-- Other local models (qwen2.5-coder:7b, nemotron-3-nano:4b) on the full benchmark
-- A held-out split. The benchmark has been used for development, so these numbers are
-  optimistic for unseen questions.
-- Runtime memory and GPU utilisation per query
-- Expert review of the 6 `review: expert` items
+- The number verifier cannot catch a wrong small count (1 or 2), because those numbers
+  appear everywhere in the results.
+- The benchmark has been used during development, so these scores are optimistic for
+  unseen questions. A held-out split is planned before any fine-tuning (M6).
+- Other local models have not been benchmarked yet. Runtime memory and GPU use are not
+  measured.

@@ -1,4 +1,6 @@
 from jazari.intelligence.composer import sanitize_citations, verify_numbers
+from jazari.intelligence.documents import DocumentIndex
+from jazari.intelligence.schemas import ToolResult
 
 
 def test_sanitize_removes_invented_citations_keeps_links():
@@ -6,8 +8,8 @@ def test_sanitize_removes_invented_citations_keeps_links():
     clean, removed = sanitize_citations(text, {"E1"})
     assert clean == "Robot is an agent [E1]. Joints allow motion. See and [docs](http://x)."
     assert removed == ["[IEEE 1872-2015, 3.1.3]", "[E9]"]
-from jazari.intelligence.documents import DocumentIndex
-from jazari.intelligence.schemas import ToolResult
+    clean, removed = sanitize_citations("39 joints [joint_summary].", {"E1"}, frozenset({"joint_summary"}))
+    assert clean == "39 joints." and removed == ["[joint_summary]"]
 
 
 def test_document_chunks_keep_lines_and_table_header(demo_manifest, demo_dir):

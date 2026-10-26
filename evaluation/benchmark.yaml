@@ -11,7 +11,7 @@
 #   abstain      - true if the correct behaviour is to say the knowledge is not available
 #   forbidden    - strings that must not appear (e.g. values from another robot)
 #   review       - "auto" (fully automated) or "expert" (facts are necessary, not sufficient)
-version: 0.2
+version: 0.2.1
 items:
   # ---------------------------------------------------------------- ontology
   - id: ont-01
@@ -141,8 +141,10 @@ items:
   - id: g1-09
     category: architecture
     question: Does the Unitree G1 configuration include a floating base, and in which file?
-    tools: [joint_summary]
-    facts: [MJCF]
+    tools: [joint_summary, kinematic_structure]
+    facts: [floating_base_joint, MJCF]
+    # v0.2.1: a run answered "does not include a floating base" and still passed on "MJCF"
+    forbidden: ["does not include a floating base", "not a floating-base", "no floating base"]
     review: auto
   - id: g1-10
     category: architecture
