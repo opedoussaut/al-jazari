@@ -421,6 +421,7 @@ class Toolbox:
             "actuator_elements_by_format": {f: dict(Counter(x["type"] for x in rows if x["format"] == f))
                                             for f in sorted({x["format"] for x in rows})},
             "actuator_models": dict(Counter(a["model"] for a in acts if a.get("model"))),
+            "hardware_facts_only_in": sorted({x["format"] for x in rows if x["type"].startswith("ros2_control")}),
             "actuators": acts[:40],
             "facts_stated_by_sources": stated,
             "not_stated_in_any_source_file": missing,

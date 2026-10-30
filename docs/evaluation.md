@@ -1,6 +1,6 @@
 # Evaluation
 
-Benchmark: [`evaluation/benchmark.yaml`](../evaluation/benchmark.yaml), v0.2.1, 58
+Benchmark: [`evaluation/benchmark.yaml`](../evaluation/benchmark.yaml), v0.2.2, 58
 questions over the G1, Berkeley Humanoid Lite, ALOHA 2 and the IEEE 1872 ontologies. Every
 expected value was checked by hand against the pinned sources. Run it with:
 
@@ -59,17 +59,27 @@ By category (LLM after fixes, automated):
 | g1-20 | pass → fail | Lists all 29 actuated joints but not their type (`motor`) and says the model is not stated. Run-to-run variation, not caused by the fixes |
 | bhl-08 | pass → fail | Names `lite_biped.urdf.xacro` correctly, but also credits the MJCF with the RobStride data, and does not say `ros2_control` |
 
-The scorer was not changed after this run, so the automated numbers of both runs stay
-comparable. "After review" corrects only the two scoring misses above (bhl-07, abs-02).
+"After review" corrects only the two scoring misses above (bhl-07, abs-02).
+
+### Scorer fixes (v0.2.2), 2026-10-30
+
+The scorer now treats `ankle_pitch` and "ankle pitch" as the same name and recognises
+"cannot be determined" as abstention. bhl-08 now also requires the file name
+`lite_biped.urdf.xacro`. Re-scoring the saved answers of both runs with v0.2.2 gives 0.828
+(before fixes) and 0.879 (after fixes), the same as the manual review.
+
+The two actuator failures were then addressed: the `actuators` tool reports which format
+holds the hardware facts (`hardware_facts_only_in`), and the composer must give element
+types and must not credit hardware facts to another file. g1-20 and bhl-08 each passed 2 of
+2 re-asks. This change came after the 58-item run, so it is **not** in the table above.
 
 ### Still open
 
 | Item | Cause | Plan |
 |---|---|---|
 | ont-02, ont-05, ont-09 | Ontology search ranks `robotPart` above `robotActuatingPart`; answers omit named classes or the axiom number | M4: ontology retrieval |
-| g1-20, bhl-08 | Incomplete or over-attributed answers on actuator data | Composer guidance for actuator listings |
+| abs-02 (passes, but flawed) | `search_documents` is not limited to the robot asked about: the ALOHA 2 answer abstains correctly but discusses the G1 motor table and README | Scope document search by robot |
 | cmp-01, cmp-03 | Comparisons: the arm joint count (7) not stated explicitly; the gripper/hand comparison used the wrong tools | A dedicated comparison tool |
-| Scoring | Fact matching misses spelled-out names; the abstention detector misses some phrasings | Normalise names and widen abstention phrases in a new benchmark version, re-scoring both runs |
 
 Also found and fixed during M3 testing, though outside the benchmark: concurrent API
 requests corrupted rdflib's SPARQL parser for the whole process (see PR #2).

@@ -15,11 +15,13 @@ ABSTAIN_PHRASES = (
     "not in the knowledge graph", "not ingested", "does not contain", "doesn't contain", "cannot provide",
     "not present", "not available", "no information", "not stated", "not specified", "not included",
     "is not provided", "are not provided", "do not have", "does not have", "unavailable", "not found",
+    "cannot be determined", "can't be determined",
 )
 
 
 def _norm(s: str) -> str:
-    return re.sub(r"\s+", " ", s.lower().replace("*", "").replace("`", ""))
+    # "ankle_pitch" and "ankle pitch" are the same name
+    return re.sub(r"\s+", " ", re.sub(r"[*`]", "", s.lower()).replace("_", " "))
 
 
 def fact_present(fact: object, answer: str) -> bool:
@@ -28,7 +30,7 @@ def fact_present(fact: object, answer: str) -> bool:
     if re.fullmatch(r"-?\d+(\.\d+)?", f):
         nums = {float(x) for x in re.findall(r"-?\d+(?:\.\d+)?", answer.replace(",", ""))}
         return float(f) in nums or any(f"{n:g}".startswith(f) for n in nums if "." in f)
-    return _norm(f) in a or _norm(f).replace(" ", "_") in a
+    return _norm(f) in a
 
 
 def score_item(item: dict, resp) -> dict:

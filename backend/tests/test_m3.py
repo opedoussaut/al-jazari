@@ -70,6 +70,11 @@ def test_berkeley_biped_hardware_actuators(tb):
     assert j["articulated_dof"] == 14 and j["floating_base"]["dof"] == 6
 
 
+def test_hardware_facts_are_attributed_to_their_format(tb):
+    assert summary(tb, "actuators", "lite-biped")["hardware_facts_only_in"] == ["xacro"]
+    assert summary(tb, "actuators", "g1-29dof-rev-1-0")["hardware_facts_only_in"] == []
+
+
 def test_aloha_bimanual(tb):
     s = summary(tb, "joint_summary", "aloha 2")
     assert s["category"] == "bimanual manipulator"

@@ -1,6 +1,9 @@
+from types import SimpleNamespace
+
+from jazari.evaluation import fact_present, score_item
 from jazari.intelligence.composer import sanitize_citations, verify_numbers
 from jazari.intelligence.documents import DocumentIndex
-from jazari.intelligence.schemas import ToolResult
+from jazari.intelligence.schemas import ToolResult, Verification
 
 
 def test_sanitize_removes_invented_citations_keeps_links():
@@ -29,3 +32,14 @@ def test_verify_numbers_flags_invented_values():
     assert bad.unsupported_numbers == ["35.5", "43"]
     lines = [ToolResult(tool="joint_details", arguments={}, summary={"mentions": "urdf:revolute@L161"})]
     assert verify_numbers("1. Defined at line 161.", "q", lines).unsupported_numbers == []
+
+
+def test_scorer_accepts_spelled_out_names_and_abstention_wording():
+    assert fact_present("ankle_pitch", "the left ankle pitch joint")
+    assert fact_present("four-bar", "a **four-bar** linkage")
+    assert not fact_present("ankle_pitch", "the left ankle roll joint")
+    resp = SimpleNamespace(trace=[], answer="The gear ratio cannot be determined from the results.",
+                           verification=Verification(numbers_checked=0, unsupported_numbers=[]),
+                           planner="llm", composer="llm", latency_ms=1)
+    assert score_item({"id": "x", "category": "abstention", "question": "q", "abstain": True}, resp)["answer_ok"]
+

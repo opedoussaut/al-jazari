@@ -1,4 +1,4 @@
-# JAZARI benchmark v0.2 (M3).
+# JAZARI benchmark v0.2.2 (M3).
 #
 # Every expected value was checked by hand against the pinned sources:
 #   unitree_ros@15ebe53f4cd77e7d745ae83b9d7ff90e685e8998 robots/g1_description/g1_29dof_rev_1_0.{urdf,xml}
@@ -11,7 +11,7 @@
 #   abstain      - true if the correct behaviour is to say the knowledge is not available
 #   forbidden    - strings that must not appear (e.g. values from another robot)
 #   review       - "auto" (fully automated) or "expert" (facts are necessary, not sufficient)
-version: 0.2.1
+version: 0.2.2
 items:
   # ---------------------------------------------------------------- ontology
   - id: ont-01
@@ -336,7 +336,7 @@ items:
     category: provenance
     question: Which file states the RobStride actuator data for the Berkeley lite biped?
     tools: [actuators, configuration_info]
-    facts: [ros2_control]
+    facts: [ros2_control, lite_biped.urdf.xacro]
     review: auto
 
   # ---------------------------------------------------------- M3: ALOHA 2
