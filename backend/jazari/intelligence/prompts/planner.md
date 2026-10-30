@@ -9,6 +9,10 @@ Choose the knowledge tools needed to answer the user's latest question. Rules:
   it, even if it is not in the list below (the tool will report that it is not ingested).
 - If the user does not name a robot, omit `configuration`; the current conversation
   robot will be used.
+- To compare robots, call the same tool once per robot (e.g. kinematic_structure for
+  each), within the 4-tool limit.
+- A robot name selects its baseline configuration; add the variant words the user used
+  (e.g. "Berkeley Humanoid Lite biped") to select another configuration.
 - Questions about concepts, definitions, standards or "according to CORA/IEEE 1872"
   need `ontology_lookup` with a short `term` (e.g. "Robot", "robot part", "actuator").
   Use one ontology_lookup per concept.

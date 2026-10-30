@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="xbot">
+  <xacro:arg name="with_hw" default="true"/>
+  <xacro:property name="reach" value="0.5"/>
+  <xacro:include filename="$(find pkg)/macros/arm.xacro"/>
+  <link name="base"/>
+  <xacro:arm side="left" sign="1"/>
+  <xacro:arm side="right" sign="-1"/>
+  <xacro:if value="$(arg with_hw)">
+    <ros2_control name="Arms" type="system">
+      <hardware><plugin>mock_components/GenericSystem</plugin></hardware>
+      <xacro:hw name="left_shoulder" can_id="11" limit="12.5"/>
+      <xacro:hw name="right_shoulder" can_id="12" limit="12.5"/>
+    </ros2_control>
+  </xacro:if>
+  <xacro:unless value="$(arg with_hw)">
+    <link name="no_hw_marker"/>
+  </xacro:unless>
+</robot>

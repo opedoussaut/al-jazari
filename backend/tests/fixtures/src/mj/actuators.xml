@@ -1,0 +1,7 @@
+<mujoco>
+  <actuator>
+    <position class="arm" name="left/shoulder" joint="left/shoulder"/>
+    <position class="finger" name="left/gripper" joint="left/finger_a"/>
+    <position class="arm" name="right/shoulder" joint="right/shoulder"/>
+  </actuator>
+</mujoco>

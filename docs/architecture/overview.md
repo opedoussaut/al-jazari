@@ -38,8 +38,8 @@ flowchart TB
     subgraph ING["Ingestion pipeline (jazari fetch / build / validate)"]
         M["sources.yaml manifest<br/>repos pinned to commit SHA"]
         F["fetch: sparse git checkout<br/>+ sources.lock.json (SHA-256)"]
-        PU["URDF parser"]
-        PM["MJCF parser"]
+        PU["URDF parser<br/>+ sandboxed Xacro expander"]
+        PM["MJCF parser<br/>includes, defaults, welds,<br/>cameras, equality"]
         KB["KG builder<br/>merge by native name,<br/>one quantity per source file"]
     end
 

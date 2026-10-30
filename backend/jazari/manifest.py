@@ -17,6 +17,7 @@ class Source(BaseModel):
     license_file: str | None = None
     license_note: str | None = None
     copyright: str | None = None
+    xacro_packages: dict[str, str] = {}  # ROS package name -> folder in the checkout
     sparse: list[str]
 
     def blob_url(self, path: str, line: int | None = None) -> str:
@@ -28,6 +29,7 @@ class SourceFile(BaseModel):
     source: str
     path: str
     format: str | None = None
+    xacro_args: dict[str, str] = {}  # overrides of <xacro:arg> defaults (none = upstream defaults)
 
 
 class Configuration(BaseModel):

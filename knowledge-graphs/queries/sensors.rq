@@ -1,10 +1,11 @@
-# Sensors of one configuration ($config) and the link they are mounted on.
-SELECT ?name ?type ?link ?format ?line ?fileUrl
+# Sensors (including cameras) of one configuration ($config) and where they are mounted.
+SELECT ?name ?type ?link ?detail ?format ?line ?fileUrl
 WHERE {
   ?config jz:hasElement ?s .
   ?s a jz:Sensor ; jz:nativeName ?name ; jz:hasMention ?m .
   ?m jz:sourceType ?type ; jz:sourceFormat ?format ; jz:sourceLine ?line ; jz:describedIn ?f .
   ?f jz:url ?fileUrl .
   OPTIONAL { ?s jz:mountedOn ?l . ?l jz:nativeName ?link }
+  OPTIONAL { ?s jz:sensorDetail ?detail }
 }
 ORDER BY ?name

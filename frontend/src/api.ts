@@ -75,10 +75,10 @@ export interface Components {
   configuration: { id: string; label: string; robot: string; uri: string };
   joints: JointRow[];
   joint_quantities: QuantityRow[];
-  kinematics: { root: string; tree: TreeNode; chains: string[][] };
+  kinematics: { root: string; roots: string[]; tree: TreeNode; trees: TreeNode[]; chains: string[][] };
   links: { name: string; format: string; line: number; mass: number | null }[];
   actuators: { name: string; type: string; joint: string; format: string; line: number; fileUrl: string }[];
-  sensors: { name: string; type: string; link: string; format: string; line: number; fileUrl: string }[];
+  sensors: { name: string; type: string; link: string | null; detail?: string | null; format: string; line: number; fileUrl: string }[];
 }
 
 export interface OntologyTerm {

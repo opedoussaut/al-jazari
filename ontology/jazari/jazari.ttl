@@ -30,8 +30,8 @@
 <https://w3id.org/jazari/ontology>
     a owl:Ontology ;
     rdfs:label "JAZARI core ontology"@en ;
-    owl:versionIRI <https://w3id.org/jazari/ontology/0.1.0> ;
-    owl:versionInfo "0.1.0" ;
+    owl:versionIRI <https://w3id.org/jazari/ontology/0.2.0> ;
+    owl:versionInfo "0.2.0" ;
     dcterms:license <https://www.apache.org/licenses/LICENSE-2.0> ;
     rdfs:comment "Robot models, configurations, kinematic elements and evidence, aligned with IEEE 1872-2015 (CORA), SOSA, QUDT and PROV-O."@en ;
     rdfs:seeAlso <https://github.com/opedoussaut/al-jazari> .
@@ -89,6 +89,11 @@ jz:Actuator a owl:Class ;
     rdfs:subClassOf jz:ModelElement ;
     rdfs:label "Actuator"@en ;
     skos:definition "A model element that generates force or torque on a joint, such as an MJCF <motor>. In a physical robot it is realised by a device that is a robot actuating part (RPARTS)."@en .
+
+jz:JointCoupling a owl:Class ;
+    rdfs:subClassOf jz:ModelElement ;
+    rdfs:label "Joint coupling"@en ;
+    skos:definition "A constraint that makes one joint's position a function of another's, such as an MJCF <equality><joint> between the two fingers of a gripper. Each one-DoF coupling removes one independent degree of freedom."@en .
 
 jz:Sensor a owl:Class ;
     rdfs:subClassOf jz:ModelElement ;
@@ -152,7 +157,13 @@ jz:rootLink a owl:ObjectProperty ;
 jz:drivesJoint a owl:ObjectProperty ;
     rdfs:domain jz:Actuator ; rdfs:range jz:Joint ; rdfs:label "drives joint"@en .
 jz:mountedOn a owl:ObjectProperty ;
-    rdfs:domain jz:Sensor ; rdfs:range jz:Link ; rdfs:label "mounted on"@en .
+    rdfs:domain jz:Sensor ; rdfs:range jz:Link ; rdfs:label "mounted on"@en ;
+    rdfs:comment "Absent for a sensor fixed in the world frame (e.g. a scene camera)."@en .
+jz:dependentJoint a owl:ObjectProperty ;
+    rdfs:domain jz:JointCoupling ; rdfs:range jz:Joint ; rdfs:label "dependent joint"@en ;
+    rdfs:comment "MJCF joint1: its position is the polynomial of the independent joint's position."@en .
+jz:independentJoint a owl:ObjectProperty ;
+    rdfs:domain jz:JointCoupling ; rdfs:range jz:Joint ; rdfs:label "independent joint"@en .
 
 jz:describedIn a owl:ObjectProperty ;
     rdfs:subPropertyOf prov:wasDerivedFrom ;
@@ -169,9 +180,11 @@ jz:evidenceType a owl:ObjectProperty ;
 jz:mass a owl:ObjectProperty ; rdfs:range qudt:QuantityValue ; rdfs:label "mass"@en .
 jz:lowerLimit a owl:ObjectProperty ; rdfs:domain jz:Joint ; rdfs:range qudt:QuantityValue ; rdfs:label "lower position limit"@en .
 jz:upperLimit a owl:ObjectProperty ; rdfs:domain jz:Joint ; rdfs:range qudt:QuantityValue ; rdfs:label "upper position limit"@en .
-jz:effortLimit a owl:ObjectProperty ; rdfs:domain jz:Joint ; rdfs:range qudt:QuantityValue ;
+jz:effortLimit a owl:ObjectProperty ; rdfs:range qudt:QuantityValue ;
     rdfs:label "effort limit"@en ;
-    rdfs:comment "Maximum force or torque. From URDF limit/@effort or MJCF joint/@actuatorfrcrange; jz:sourceAttribute tells which."@en .
+    rdfs:comment "Maximum force or torque, on a joint (URDF limit/@effort, MJCF joint/@actuatorfrcrange) or on an actuator (MJCF actuator/@forcerange, ros2_control torque_limit); jz:sourceAttribute tells which."@en .
+jz:currentLimit a owl:ObjectProperty ; rdfs:domain jz:Actuator ; rdfs:range qudt:QuantityValue ;
+    rdfs:label "current limit"@en ; rdfs:comment "Motor current limit, e.g. ros2_control current_limit."@en .
 jz:velocityLimit a owl:ObjectProperty ; rdfs:domain jz:Joint ; rdfs:range qudt:QuantityValue ; rdfs:label "velocity limit"@en .
 
 # -------------------------------------------------------- datatype properties --
@@ -194,6 +207,25 @@ jz:degreesOfFreedom a owl:DatatypeProperty ; rdfs:domain jz:Joint ; rdfs:range x
     rdfs:comment "Derived from the normalised joint class by a fixed table (revolute, continuous, prismatic = 1; ball, planar = 3; floating = 6; fixed = 0). Says nothing about whether the joint is actuated."@en .
 jz:mjcfGear a owl:DatatypeProperty ; rdfs:domain jz:Actuator ; rdfs:range xsd:double ;
     rdfs:label "MJCF gear"@en ; rdfs:comment "MJCF actuator transmission scale (actuator/@gear). Not necessarily a physical gearbox ratio."@en .
+jz:mjcfKp a owl:DatatypeProperty ; rdfs:domain jz:Actuator ; rdfs:range xsd:double ;
+    rdfs:label "MJCF position gain"@en ; rdfs:comment "kp of an MJCF <position> actuator."@en .
+jz:actuatorModel a owl:DatatypeProperty ; rdfs:domain jz:Actuator ; rdfs:range xsd:string ;
+    rdfs:label "actuator model"@en ; rdfs:comment "Actuator product model as written in the source, e.g. RobStride rs-06."@en .
+jz:hardwareAddress a owl:DatatypeProperty ; rdfs:domain jz:Actuator ; rdfs:range xsd:string ;
+    rdfs:label "hardware address"@en ; rdfs:comment "Bus address as written in the source, e.g. can_id=31."@en .
+jz:hardwarePlugin a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "hardware plugin"@en .
+jz:commandInterface a owl:DatatypeProperty ; rdfs:domain jz:Actuator ; rdfs:range xsd:string ;
+    rdfs:label "command interface"@en .
+jz:transmissionType a owl:DatatypeProperty ; rdfs:domain jz:Actuator ; rdfs:range xsd:string ;
+    rdfs:label "transmission type"@en .
+jz:transmissionParameters a owl:DatatypeProperty ; rdfs:domain jz:Actuator ; rdfs:range xsd:string ;
+    rdfs:label "transmission parameters"@en ; rdfs:comment "Raw parameters as written in the source; units are not stated there."@en .
+jz:polynomialCoefficients a owl:DatatypeProperty ; rdfs:domain jz:JointCoupling ; rdfs:range xsd:string ;
+    rdfs:label "polynomial coefficients"@en .
+jz:sensorDetail a owl:DatatypeProperty ; rdfs:domain jz:Sensor ; rdfs:range xsd:string ;
+    rdfs:label "sensor detail"@en .
+jz:xacroArguments a owl:DatatypeProperty ; rdfs:domain jz:DescriptionFile ; rdfs:range xsd:string ;
+    rdfs:label "Xacro arguments"@en ; rdfs:comment "Arguments used to expand a Xacro file; empty means the upstream defaults."@en .
 jz:modeMachine a owl:DatatypeProperty ; rdfs:domain jz:RobotConfiguration ; rdfs:range xsd:integer ;
     rdfs:label "mode_machine"@en ; rdfs:comment "Unitree machine-type identifier of the configuration."@en .
 jz:derivationMethod a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:label "derivation method"@en .

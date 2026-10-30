@@ -10,6 +10,7 @@ replaced by Apache Jena Fuseki when a persistent SPARQL service is needed.
 from __future__ import annotations
 
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,12 @@ from .namespaces import PREFIXES, sparql_prefixes
 IEEE1872_MODULES = ["cora", "cora-bare", "corax", "rparts", "sumo-cora", "annotation", "pos"]
 
 _SERVICE = re.compile(r"\bSERVICE\b", re.IGNORECASE)
+
+
+# rdflib's SPARQL grammar is a module-level pyparsing object that is not thread-safe:
+# concurrent parses corrupt it for the rest of the process. One process-wide lock guards
+# every parse and evaluation, whichever GraphStore instance runs it.
+SPARQL_LOCK = threading.RLock()
 
 
 class QueryRejected(ValueError):
@@ -41,6 +48,7 @@ class GraphStore:
         for k, v in PREFIXES.items():
             self.graph.bind(k, v)
         self.files = LoadedFiles([], [], [])
+        self._compiled: dict[str, object] = {}
 
     @classmethod
     def load(cls, ontology_dir: Path, sources_dir: Path, generated_dir: Path) -> GraphStore:
@@ -61,7 +69,10 @@ class GraphStore:
             store.files.knowledge_graphs.append(p)
         return store
 
-    def select(self, query: str, bindings: dict | None = None) -> list[dict[str, object]]:
+    def _compile(self, query: str):
+        cached = self._compiled.get(query)
+        if cached is not None:
+            return cached
         if _SERVICE.search(query):
             raise QueryRejected("SERVICE clauses are not allowed")
         try:
@@ -70,12 +81,16 @@ class GraphStore:
             raise QueryRejected(f"not a valid read-only SPARQL query: {e}") from e
         if q.algebra.name != "SelectQuery":
             raise QueryRejected("only SELECT queries are allowed")
-        result = self.graph.query(q, initBindings=bindings or {})
-        names = [str(v) for v in result.vars]
-        rows = []
-        for row in result:
-            rows.append({n: (v.toPython() if v is not None else None) for n, v in zip(names, row)})
-        return rows
+        self._compiled[query] = q
+        return q
+
+    def select(self, query: str, bindings: dict | None = None) -> list[dict[str, object]]:
+        with SPARQL_LOCK:  # compiled once per query text, see SPARQL_LOCK
+            q = self._compile(query)
+            result = self.graph.query(q, initBindings=bindings or {})
+            names = [str(v) for v in result.vars]
+            return [{n: (v.toPython() if v is not None else None) for n, v in zip(names, row)}
+                    for row in result]
 
     def __len__(self) -> int:
         return len(self.graph)

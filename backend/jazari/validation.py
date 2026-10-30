@@ -13,6 +13,7 @@ from rdflib import RDF, Graph
 from .kg.namespaces import JZ, QUDT
 
 LIMIT_TOLERANCE = 1e-4
+_QUANTITY_PROPS = (JZ.lowerLimit, JZ.upperLimit, JZ.effortLimit, JZ.velocityLimit, JZ.currentLimit)
 
 
 @dataclass
@@ -113,14 +114,15 @@ def structural_checks(data: Graph, report: ValidationReport) -> None:
                 if j is not None and j not in elements:
                     report.errors.append(f"actuator {data.value(a, JZ.nativeName)} drives missing joint {j}")
 
-        cross_format_checks(data, joints, report)
+        actuators = [e for e in elements if (e, RDF.type, JZ.Actuator) in data]
+        cross_format_checks(data, joints + actuators, report)
 
 
-def cross_format_checks(data: Graph, joints: list, report: ValidationReport) -> None:
-    """Compare the same quantity stated in different source formats."""
-    for j in joints:
+def cross_format_checks(data: Graph, elements: list, report: ValidationReport) -> None:
+    """Compare the same quantity stated in different source formats (joints, actuators)."""
+    for j in elements:
         name = data.value(j, JZ.nativeName)
-        for prop in (JZ.lowerLimit, JZ.upperLimit, JZ.effortLimit, JZ.velocityLimit):
+        for prop in _QUANTITY_PROPS:
             per_file = Counter(data.value(q, JZ.describedIn) for q in data.objects(j, prop))
             for f, n in per_file.items():
                 if n > 1:
@@ -128,7 +130,7 @@ def cross_format_checks(data: Graph, joints: list, report: ValidationReport) -> 
         formats = {str(data.value(m, JZ.sourceFormat)) for m in data.objects(j, JZ.hasMention)}
         if len(formats) < 2:
             continue
-        for prop in (JZ.lowerLimit, JZ.upperLimit, JZ.effortLimit, JZ.velocityLimit):
+        for prop in _QUANTITY_PROPS:
             values = {}
             for q in data.objects(j, prop):
                 fmt = str(data.value(data.value(q, JZ.describedIn), JZ.sourceFormat))

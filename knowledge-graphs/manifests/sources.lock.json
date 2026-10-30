@@ -1,5 +1,5 @@
 {
-  "retrieved": "2026-10-25T17:59:21+00:00",
+  "retrieved": "2026-10-25T21:05:58+00:00",
   "sources": {
     "unitree_ros": {
       "repo": "https://github.com/unitreerobotics/unitree_ros",
@@ -75,6 +75,40 @@
         "README.md": "cc55f64d25781ea12d84c33ee833f829e7c2955ea04fa2102cbc897ecae4fbf8",
         "rparts.owl": "4b3d078302eef30abaf5b1c6778dfb71f54afa1b66b934aa878a96b26cf10321",
         "sumo-cora.owl": "34625bf7d014a3c283d67e6fbad6a296706f944d65463aa6d2f6b1bb12afe8d2"
+      }
+    },
+    "lite_description": {
+      "repo": "https://github.com/berkeley-humanoids/lite_description",
+      "revision": "e582f6b27e2f4954d914f5db9d46e6dd409c74fb",
+      "license": "MIT",
+      "files": {
+        "LICENSE": "3987f6062bf43290b5d062b1ee8b4bcd58d3659ebcc980c42aefbf39e78b0852",
+        "lite_description/robots/lite/cad/joint_properties.json": "ef3f852bae2fa76a642091fb0c9dd1e84ccc50d6e92483c30528be00cced7df1",
+        "lite_description/robots/lite/mjcf/lite.xml": "4289fd84141ecad53bec57717761dbbb7841ba6b60ff76ef43356413b37788cc",
+        "lite_description/robots/lite/urdf/lite.urdf": "7be77d5647d302b63256ec33e251cc14f3379a32c2636f0b6dea9990da72b4ff",
+        "lite_description/robots/lite/xacro/lite.description.xacro": "2ab6f40a5bb1fad90c3b1b1faec720f62ffbcd514dcd70d277d2facd5f99b551",
+        "lite_description/robots/lite/xacro/lite.urdf.xacro": "29b0c421b65e677c7fc35403a82426ef4dd853388bf35f07631477993ff98ba8",
+        "lite_description/robots/lite_biped/mjcf/lite_biped.xml": "40d322e2d3c095e05c5cfe4c4d3f659297f6d33a23f73a8f57ab36cccbabec84",
+        "lite_description/robots/lite_biped/xacro/lite_biped.description.xacro": "4e9c9acdeee108a6e329df170a0c1daeacfe2036700fdb07935b7f0db5fc274d",
+        "lite_description/robots/lite_biped/xacro/lite_biped.ros2_control.xacro": "784efde3b31bc770c37158d9a07bcb588cfa6f1dd0c7a1cf81bba086757b4257",
+        "lite_description/robots/lite_biped/xacro/lite_biped.urdf.xacro": "6de8ff996b54a2aae915af3e1fc618c84c9f1df9a20890692d231d374680a14d",
+        "README.md": "12e280e1dc13c97abf3c5bcf2d68500d40d85a5f2cedd869d86568cd439ad54a"
+      }
+    },
+    "mujoco_menagerie": {
+      "repo": "https://github.com/google-deepmind/mujoco_menagerie",
+      "revision": "f3b6013629c7b94f8ee93fd977b161fa8350f9bc",
+      "license": "BSD-3-Clause",
+      "files": {
+        "aloha/aloha.xml": "952890245463437cb8245ffe7646b9109b5afbe6fe0dd485b799318b512e807c",
+        "aloha/CHANGELOG.md": "64a7bff34d6c2ce0574f970d3afbc0a3a5c2d4f70feaba1693840239c7ace8e8",
+        "aloha/filtered_cartesian_actuators.xml": "2771a9dce5e4a9d700ac5e3d1c9aaa33c9298bca3f6a1bda9ce1826dd8f0bf55",
+        "aloha/joint_position_actuators.xml": "574fc2bb1a85f8c728ee7e2a77f8428ed6cfd16c75c84388e8716559ee458351",
+        "aloha/keyframe_ctrl.xml": "af0ca5d220ee67e7ae61375b1f7de185451a8a08c6c14fa4037fcbd1c50c5e8c",
+        "aloha/keyframe_no_act.xml": "d5befe2427030da5d5997581460341e6a241865d48dcffdb5ac9d041569ca5cb",
+        "aloha/LICENSE": "a6f1bde1043b461fa45e6a89c293c53108e592c7b019685ec4d4ac05842fcfbe",
+        "aloha/README.md": "f3e7b949e54a67c1db0bb516ad1c23e5bbec9f6004741b4519019f4700f0f9da",
+        "aloha/scene.xml": "727bc83d5a4ecf567bccc9291ab6b6dbb2bd7db68eeeeb2e2b86b0a248e9acbf"
       }
     }
   }

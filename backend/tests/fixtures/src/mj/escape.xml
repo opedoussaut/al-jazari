@@ -1,0 +1,1 @@
+<mujoco model="escape"><include file="../demo/arm.xml"/></mujoco>

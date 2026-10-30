@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 from rdflib import Graph, URIRef
 
@@ -36,8 +34,9 @@ def test_merge_urdf_and_mjcf(demo_graph):
     assert len(list(g.objects(shoulder, JZ.effortLimit))) == 2  # one per format, never merged
     assert (shoulder, None, JZ.RevoluteJoint) in g
     assert g.value(CONFIG, JZ.rootLink) == URIRef(f"{CONFIG}/link/base")
-    assert report.counts == {"urdf": {"links": 4, "joints": 3, "actuators": 0, "sensors": 0},
-                             "mjcf": {"links": 3, "joints": 3, "actuators": 2, "sensors": 1}}
+    common = {"implicit_welds": 0, "couplings": 0}
+    assert report.counts == {"urdf": {"links": 4, "joints": 3, "actuators": 0, "sensors": 0, **common},
+                             "mjcf": {"links": 3, "joints": 3, "actuators": 2, "sensors": 1, **common}}
 
 
 def test_validation_reports_cross_format_inconsistency(demo_graph):
@@ -53,7 +52,8 @@ def test_validation_detects_missing_link_and_bad_mass(demo_graph):
     joint = URIRef(f"{CONFIG}/joint/tool_joint")
     g.set((joint, JZ.childLink, URIRef(f"{CONFIG}/link/nowhere")))
     mass = next(g.objects(URIRef(f"{CONFIG}/link/l2"), JZ.mass))
-    from rdflib import Literal, XSD
+    from rdflib import XSD, Literal
+
     from jazari.kg.namespaces import QUDT
     g.set((mass, QUDT.numericValue, Literal(-1.0, datatype=XSD.double)))
     rep = validate_graph(g, jazari_ontology(), SHAPES)
@@ -69,6 +69,17 @@ def test_store_is_read_only(tmp_path):
                 "SELECT * WHERE { SERVICE <http://example.org/sparql> { ?s ?p ?o } }"):
         with pytest.raises(QueryRejected):
             store.select(bad)
+    assert store.select("SELECT ?s WHERE { ?s ?p ?o }") == []
+
+
+def test_store_survives_concurrent_queries():
+    """Regression: parallel API requests corrupted rdflib's shared SPARQL grammar."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    store = GraphStore()
+    queries = [q.read_text(encoding="utf-8") for q in (ROOT / "knowledge-graphs" / "queries").glob("*.rq")]
+    with ThreadPoolExecutor(8) as ex:
+        list(ex.map(store.select, queries * 4))
     assert store.select("SELECT ?s WHERE { ?s ?p ?o }") == []
 
 
