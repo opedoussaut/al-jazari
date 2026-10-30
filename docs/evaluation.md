@@ -24,45 +24,52 @@ Items marked `review: expert` also need human review. Their automated facts are 
 but not sufficient. Unsupported numbers, removed citations and latency are recorded per
 item.
 
-## Results — M3, benchmark v0.2 (58 items), 2026-10-26, RTX A1000 6 GB, Ollama 0.40.9
+## Results — M3 after fixes, benchmark v0.2.1 (58 items), 2026-10-30, RTX A1000 6 GB, Ollama 0.40.9
 
 | Mode | Tool selection | Answer (automated) | Answer (after review) | Median latency | p90 latency |
 |---|---|---|---|---|---|
 | Rules + template (no LLM) | 0.810 | 0.534 | — | < 0.5 s | < 1 s |
-| `qwen3-coder:30b` | **0.879** | **0.845** | **0.828** | 16.7 s | 39.6 s |
+| `qwen3-coder:30b`, after fixes | **0.931** | **0.845** | **0.879** | 17.6 s | 37.9 s |
+| `qwen3-coder:30b`, before fixes (2026-10-26) | 0.879 | 0.845 | 0.828 | 16.7 s | 39.6 s |
 
-"After review" reflects one false pass that review found: g1-09. The model answered that
-the G1 has *no* floating base, which is wrong (the MJCF declares one). It passed
-automatically only because "MJCF" appeared in its answer. The item now also requires
-`floating_base_joint` and forbids the false claim (v0.2.1).
+The slowest item took 66 s. The run before the fixes had one item (bhl-05) that took 7.7
+hours because the host was suspended; it is excluded from its latency figures.
 
-One item (bhl-05) took 7.7 hours because the host was suspended overnight during the run.
-It is excluded from the latency figures; the slowest other item took 246 s.
-
-By category (LLM, automated):
+By category (LLM after fixes, automated):
 
 | Category | n | Tool selection | Answer |
 |---|---|---|---|
-| Architecture | 19 | 0.84 | 0.95 |
-| Properties | 14 | 0.86 | 0.86 |
+| Architecture | 19 | 0.89 | 1.00 |
+| Properties | 14 | 1.00 | 0.86 |
 | Ontology | 10 | 1.00 | 0.70 |
-| Provenance | 6 | 1.00 | 1.00 |
+| Provenance | 6 | 1.00 | 0.83 |
 | Abstention | 6 | 0.83 | 0.83 |
 | Comparison | 3 | 0.67 | 0.33 |
 
-### Failures and what was done
+### What changed between the two runs
 
-| Item | Cause | Action |
+| Item | Before → after | Why |
 |---|---|---|
-| bhl-03 | The planner chose the `lite_biped` variant for "Berkeley Humanoid Lite without its hands" | **Fixed:** the engine overrides a variant the question does not name (ADR-015). Re-asked: correct (32) |
-| g1-09 | Asserted a negative ("no floating base") that no tool result supported | **Fixed:** composer rule against unsupported absence claims; tool descriptions mention the floating base. Re-asked: correct |
-| bhl-07 | The planner invented joint names instead of calling `actuators` | **Fixed:** the actuators tool description now covers transmissions and linkages. Re-asked: correct |
-| ont-02, ont-05, ont-09 | Ontology search ranks `robotPart` above `robotActuatingPart`; answers omit named classes or the axiom number | Open (M4: ontology retrieval) |
-| g1-06, g1-08, g1-19, abs-05 | Correct or partly correct answers through other tools than expected; g1-19 missed link names | Open |
-| cmp-01, cmp-03 | Comparisons: the arm joint count (7) not stated explicitly; the gripper/hand comparison used the wrong tools | Open: a dedicated comparison tool is planned |
+| bhl-03 | fail → pass | Variant guard (ADR-015): answers 32 DoF for the full-body `lite` |
+| g1-09 | false pass → pass | Correct now: floating base `floating_base_joint`, stated in the MJCF (`mjcf:free@L45`) |
+| g1-19 | fail → pass | Planner now calls `links_and_masses` |
+| abs-05 | fail → pass | Abstains correctly |
+| bhl-07 | fail → fail (automated), **pass after review** | Now calls `actuators` and answers correctly ("left and right ankle pitch joints", four-bar linkage). The scorer looks for `ankle_pitch` and misses the spelled-out name |
+| abs-02 | pass → fail (automated), **pass after review** | Correctly says the gear ratio cannot be determined, a phrasing the abstention detector does not know |
+| g1-20 | pass → fail | Lists all 29 actuated joints but not their type (`motor`) and says the model is not stated. Run-to-run variation, not caused by the fixes |
+| bhl-08 | pass → fail | Names `lite_biped.urdf.xacro` correctly, but also credits the MJCF with the RobStride data, and does not say `ros2_control` |
 
-A full re-run after these fixes is pending, so the table above shows the measured run
-**before** the fixes.
+The scorer was not changed after this run, so the automated numbers of both runs stay
+comparable. "After review" corrects only the two scoring misses above (bhl-07, abs-02).
+
+### Still open
+
+| Item | Cause | Plan |
+|---|---|---|
+| ont-02, ont-05, ont-09 | Ontology search ranks `robotPart` above `robotActuatingPart`; answers omit named classes or the axiom number | M4: ontology retrieval |
+| g1-20, bhl-08 | Incomplete or over-attributed answers on actuator data | Composer guidance for actuator listings |
+| cmp-01, cmp-03 | Comparisons: the arm joint count (7) not stated explicitly; the gripper/hand comparison used the wrong tools | A dedicated comparison tool |
+| Scoring | Fact matching misses spelled-out names; the abstention detector misses some phrasings | Normalise names and widen abstention phrases in a new benchmark version, re-scoring both runs |
 
 Also found and fixed during M3 testing, though outside the benchmark: concurrent API
 requests corrupted rdflib's SPARQL parser for the whole process (see PR #2).
